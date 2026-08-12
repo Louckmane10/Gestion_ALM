@@ -1,4 +1,4 @@
-# LaTeX
+# Artefacts LaTeX
 *.aux
 *.log
 *.out
@@ -11,30 +11,27 @@
 *.bbl
 *.blg
 
-# System / local
+# Système / local
 .DS_Store
 .Rhistory
 .ipynb_checkpoints/
 
-# Local runners / temp
-_run_*.jl
-_run_*.log
-note_etudiant.*
-
-# Do not redistribute copyrighted reference book
-978-*.pdf
-
-# Notes de travail locales (ne pas versionner)
-criteres_soumission_td.md
-note_etudiant.*
+# Scripts de lancement locaux et journaux d'exécution
 _run_*
 
-# Figure vectorielle locale optionnelle
-comparaison_benchmarks.pdf
+# Notes de travail personnelles et retours non publics
+criteres_soumission_td.md
+note_etudiant.*
 
-# Artefacts locaux / doublons du rapport (le dépôt livre travail_dirige.pdf)
+# Ouvrage de référence sous droits — ne pas redistribuer
+978-*.pdf
+
+# Doublons du rapport (le dépôt livre travail_dirige.pdf)
 td_alm_squelette.pdf
 td_alm_apercu.pdf
-*.aux
-*.toc
-*.out
+
+# Figure : le PDF vectoriel est VERSIONNÉ (le rapport l'inclut) ; le PNG ne l'est plus
+comparaison_benchmarks.png
+
+# Script utilitaire local
+pousser_depot.sh

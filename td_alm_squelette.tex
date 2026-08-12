@@ -1024,26 +1024,43 @@ théorie.
 L'arbre étant échantillonné, la solution dépend de la graine. Sur douze
 réalisations indépendantes de l'arbre (graines \texttt{SEED0}$+1$ à
 \texttt{SEED0}$+12$), la décision racine et les métriques du cas de base se
-répartissent ainsi (moyenne $\pm$ écart type)~:
+répartissent comme au tableau~\ref{tab:graines}.
 
-\begin{center}
-\begin{tabular}{lc}
+\begin{table}[htbp]
+\centering
+\caption{Stabilité inter-graines~: douze réalisations indépendantes de l'arbre
+(graines \texttt{SEED0}$+1$ à \texttt{SEED0}$+12$), branchement
+$[10,5,5,5,5]$, tous autres paramètres inchangés. Les poids racine sont
+exprimés en proportion du solde investissable.}
+\label{tab:graines}
+\begin{tabular}{lrr}
 \toprule
-Objectif du LP & $-23{,}9 \pm 13{,}8$ \\
-$\prob(\mathrm{FR}_T < 1)$ & $0{,}119 \pm 0{,}049$ \\
+Grandeur & Moyenne & Écart type \\
 \midrule
-Poids racine XIC & $0{,}281 \pm 0{,}098$ \\
-Poids racine XLB & $0{,}150 \pm 0{,}000$ \\
-Poids racine XRB & $0{,}106 \pm 0{,}096$ \\
-Poids racine VFV & $0{,}400 \pm 0{,}000$ \\
-Poids racine CGL & $0{,}062 \pm 0{,}047$ \\
+Objectif du LP & $-23{,}9$ & $13{,}8$ \\
+$\prob(\mathrm{FR}_T < 1)$ & $11{,}9\,\%$ & $4{,}9$~pts \\
+\midrule
+\multicolumn{3}{@{}l}{\emph{Poids de la décision racine}} \\
+\quad XIC (actions CA)   & $0{,}281$ & $0{,}098$ \\
+\quad XLB (oblig.\ LT)    & $0{,}150$ & ---$^{\dagger}$ \\
+\quad XRB (oblig.\ réel)  & $0{,}106$ & $0{,}096$ \\
+\quad VFV (actions US)   & $0{,}400$ & ---$^{\dagger}$ \\
+\quad CGL (or)           & $0{,}062$ & $0{,}047$ \\
 \bottomrule
 \end{tabular}
-\end{center}
 
-Deux mises en garde s'imposent dans la lecture de ce tableau, et nous les
-faisons nôtres plutôt que de les laisser découvrir. D'abord, les écarts types
-nuls de XLB et VFV ne signalent \emph{pas} une décision intrinsèquement
+\vspace{0.4em}
+\begin{minipage}{0.86\textwidth}
+\footnotesize $^{\dagger}$~Poids identiquement au plancher (XLB, $15\,\%$) ou
+au plafond (VFV, $40\,\%$) dans les douze tirages. L'écart type y est nul par
+\emph{saturation de la contrainte}, non par stabilité de la décision~; nous
+écrivons un tiret plutôt que $0{,}000$, qui suggérerait une dispersion mesurée.
+\end{minipage}
+\end{table}
+
+Deux mises en garde s'imposent dans la lecture du tableau~\ref{tab:graines}, et
+nous les faisons nôtres plutôt que de les laisser découvrir. D'abord, les tirets
+portés par XLB et VFV ne signalent \emph{pas} une décision intrinsèquement
 stable~: ces poids sont collés à leurs bornes ($15\,\%$ plancher pour XLB,
 $40\,\%$ plafond pour VFV) dans les douze réalisations, et leur stabilité est
 un artefact de la contrainte --- le modèle voudrait systématiquement plus de
@@ -1198,7 +1215,7 @@ Optimisée (multi-étapes) & $43{,}6$ & $-16{,}2$ & $11{,}5\,\%$ & $35{,}0\,\%$ 
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{comparaison_benchmarks.png}
+\includegraphics[width=\textwidth]{comparaison_benchmarks.pdf}
 \caption{Distribution du surplus terminal $S_T$ par politique sur les $200$
 trajectoires hors échantillon~: boîtes à moustaches colorées par politique
 (gauche) et fonctions de répartition empiriques (droite). Le trait pointillé
@@ -1244,6 +1261,7 @@ $\prob(\min_t \mathrm{FR}_t < 1)$), seul lieu où le ré-ancrage de $\delta$ peu
 encore s'exprimer.
 
 \paragraph{Encadrement de l'optimum.}
+\begin{sloppypar}
 La lecture croisée des deux évaluations est le résultat méthodologique central
 de cette section~\cite{Mak1999,KautWallace2007}. La moyenne des
 $\E[S_T]$ in-sample sur douze graines estime $\E[\hat v_N]$, borne
@@ -1256,6 +1274,7 @@ surestime d'une douzaine de points la performance réalisable hors échantillon~
 la moyenne inter-graines est, elle, cohérente avec l'évaluation fraîche. La
 section~\ref{ssec:biais-saa} nomme le biais d'optimisation et l'encadrement au
 sens de~\cite{Mak1999}.
+\end{sloppypar}
 
 Reste la direction que l'évaluation précédente ne couvre pas~: le risque de
 modèle. On y répond par un test de \emph{mauvaise spécification}~: $200$
@@ -1499,9 +1518,13 @@ qu'on fixe une graine et qu'on résout l'instance discrétisée qui en découle
 \cite{Mak1999,Shapiro2003}). On n'a pas commis une erreur d'implémentation~;
 on a optimisé un problème approché.
 
-Soit un programme $v^\star = \min_x \E[F(x,\xi)]$ et son approximation sur
-$N$ scénarios,
-$\hat v_N = \min_x \frac1N\sum_{i=1}^N F(x,\xi^i)$. Alors
+Soit un programme
+\[
+v^\star = \min_x\ \E[F(x,\xi)]
+\qquad\text{et son approximation sur $N$ scénarios}\qquad
+\hat v_N = \min_x\ \frac1N \sum_{i=1}^N F(x,\xi^i).
+\]
+Alors
 \begin{equation}\label{eq:saa-bias}
 \E[\hat v_N] \;\le\; v^\star,
 \end{equation}
@@ -1924,7 +1947,7 @@ L'intégralité du matériel est déposée à l'adresse
 \texttt{alm\_pension\_julia.ipynb}, les deux caches de données
 (\texttt{prix\_ajustes\_cache.csv} pour la calibration,
 \texttt{prix\_vsp\_cache.csv} pour le diagnostic de change), la figure
-\texttt{comparaison\_benchmarks.png}, la source \LaTeX{} du présent document,
+\texttt{comparaison\_benchmarks.pdf}, la source \LaTeX{} du présent document,
 ainsi que \texttt{Project.toml} et \texttt{Manifest.toml} qui figent les
 versions exactes des paquets. Un clone du dépôt s'exécute donc sur une machine
 vierge sans autre préalable qu'une installation de Julia~: la première cellule
