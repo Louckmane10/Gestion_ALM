@@ -14,7 +14,7 @@ Auteur : Louckmane Alma Mousbahou
 | `Project.toml` / `Manifest.toml` | Environnement Julia figé |
 | `prix_ajustes_cache.csv` | Cache de prix (données gelées au 2026-06-30) |
 | `prix_vsp_cache.csv` | Cache VSP (diagnostic de change) |
-| `comparaison_benchmarks.pdf` | Figure du § résultats |
+| `comparaison_benchmarks.png` | Figure du § résultats |
 
 ## Reproduire les résultats
 
