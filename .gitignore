@@ -1,0 +1,30 @@
+# LaTeX
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+
+# System / local
+.DS_Store
+.Rhistory
+.ipynb_checkpoints/
+
+# Local runners / temp
+_run_*.jl
+_run_*.log
+note_etudiant.*
+
+# Do not redistribute copyrighted reference book
+978-*.pdf
+
+# Notes de travail locales (ne pas versionner)
+criteres_soumission_td.md
+note_etudiant.*
+_run_*

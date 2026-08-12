@@ -44,13 +44,17 @@ prestations déterminées \emph{fermé}, pour lequel l'allocation d'actifs const
 seul levier de pilotage. Le problème est formulé comme un programme linéaire de recours
 multi-étapes sur arbre de scénarios, combinant un objectif terminal fondé sur le
 \emph{Conditional Surplus-at-Risk} (CSaR) et des contraintes de solvabilité
-intermédiaires de type \emph{Integrated Chance Constraints} (ICC). Le modèle est
+intermédiaires de type \emph{Integrated Chance Constraints} (ICC, contraintes
+de manque intégrées). Le modèle est
 calibré sur cinq FNB canadiens et résolu en Julia (JuMP/HiGHS). Nous introduisons un
 plancher de faisabilité $\taustar$ --- la plus petite tolérance de manque uniforme
-atteignable --- qui sert à la fois d'ancrage robuste pour la calibration des
-contraintes et de mesure du coût de solvabilité d'un régime fermé. L'évaluation hors
+atteignable sur un arbre échantillonné --- qui sert d'ancrage pour la calibration des
+contraintes et de mesure du coût de solvabilité d'un régime fermé. Nous le traitons
+explicitement comme un \emph{estimateur} (biaisé vers le bas, dispersé d'une graine
+à l'autre), et non comme une constante structurelle. L'évaluation hors
 échantillon en horizon roulant et les analyses de sensibilité quantifient la valeur de
-la flexibilité multi-étapes et la dépendance des résultats à la fenêtre d'estimation
+la flexibilité multi-étapes, l'écart d'optimalité de l'approximation par moyenne
+échantillonnale, et la dépendance des résultats à la fenêtre d'estimation
 des rendements espérés.
 \end{abstract}
 
@@ -114,8 +118,9 @@ ancrons donc $\delta$ à un \emph{plancher de faisabilité} $\taustar$, défini 
 la plus petite tolérance uniforme atteignable et calculé par un programme minimax
 auxiliaire. Ce plancher garantit la faisabilité par construction, rend la
 calibration robuste à toute mise à jour des données et --- surtout --- possède une
-interprétation économique propre~: $\taustar$ mesure le niveau de solvabilité
-incompressible d'un fonds fermé. Sa variante \emph{conditionnelle}, qui exige la
+interprétation économique propre~: $\taustar$ estime le niveau de solvabilité
+incompressible d'un fonds fermé, au sens d'un ordre de grandeur soumis à
+l'incertitude d'échantillonnage de l'arbre. Sa variante \emph{conditionnelle}, qui exige la
 tenue du seuil état par état plutôt qu'en espérance vue de la racine, s'avère
 beaucoup plus exigeante~; l'écart entre les deux chiffre le prix de la cohérence
 temporelle et, en creux, la valeur des cotisations de redressement dont le fonds
@@ -140,8 +145,8 @@ quantifions~: une part substantielle de la sécurité apparente du fonds est
 
 Le périmètre du travail est volontairement resserré. Le passif est exogène et
 indépendant des rendements~; la mesure de risque terminale est statique~; les
-rendements sont log-normaux i.i.d.~; la poche d'actions américaines est portée
-non couverte, le risque de change étant ainsi modélisé implicitement dans les
+rendements sont log-normaux i.i.d.~; le compartiment d'actions américaines est porté
+non couvert, le risque de change étant ainsi modélisé implicitement dans les
 rendements en dollars canadiens. Ces
 hypothèses, discutées en section~\ref{sec:limites}, préservent la linéarité et la
 lisibilité du prototype~; leurs relâchements naturels --- cotisations, couplage
@@ -612,11 +617,16 @@ respecter. Formellement, on résout le programme auxiliaire (minimax)
 \sum_{t(n)=t} p_n D_n \le \tau\, \E[L_t],\ t = 1,\dots,T-1 \Big\},
 \end{equation}
 qui est un programme linéaire de même structure que l'équivalent déterministe,
-sans le bloc CSaR, avec $\tau$ pour seule variable d'objectif. Par construction,
-le problème~\eqref{eq:objectif}--\eqref{eq:c-icc} est faisable si et seulement si
-$\delta_t \ge \taustar$ ne serait-ce qu'au sens uniforme~; plus précisément,
-$\delta_t \ge \taustar$ pour tout $t$ est une condition suffisante de
-faisabilité. Nous posons alors
+sans le bloc CSaR, avec $\tau$ pour seule variable d'objectif. La propriété
+qui nous intéresse est une implication, et une seule~: $\delta_t \ge \taustar$
+pour tout $t$ est une condition \emph{suffisante} de faisabilité
+de~\eqref{eq:objectif}--\eqref{eq:c-icc}. Elle n'est pas nécessaire~:
+$\taustar$ étant le plus petit seuil \emph{uniforme} réalisable et non le plus
+petit seuil tout court, un profil non uniforme peut être admissible en
+relâchant une période pour en resserrer une autre --- $\delta_2 < \taustar <
+\delta_1$ est parfaitement possible. C'est bien la suffisance qui est
+recherchée ici, l'ancrage visant à garantir la faisabilité par construction.
+Nous posons alors
 \begin{equation}\label{eq:delta-ancrage}
 \delta_t \;=\; 1{,}10 \times \taustar \qquad \text{pour tout } t,
 \end{equation}
@@ -631,18 +641,24 @@ espérés sans re-calibration.
 Une précision d'honnêteté s'impose ici, que les résultats
 (section~\ref{sec:resultats}) établiront en détail~: à ce niveau de tolérance,
 la contrainte n'est \emph{pas} active au cas de base --- les multiplicateurs
-optimaux de~\eqref{eq:c-icc} y sont tous nuls. La raison est instructive~:
-l'objectif CSaR pousse déjà le manque de chemin contre son minimum minimax, de
-sorte que le profil libre colle à $\taustar$ et que toute marge strictement
-positive laisse la contrainte lâche. L'ICC ne joue donc pas ici le rôle d'un prix
-marginal qui sculpterait la solution à l'intérieur du domaine~; elle agit comme un
-\emph{révélateur de frontière}~: ses duals s'allument exactement sur le plancher
-($\delta = \taustar$, balayage de la section~\ref{sec:resultats}), et c'est
-l'objet qu'elle induit --- $\taustar$, solution du minimax~\eqref{eq:taustar},
-pour lequel la contrainte est active par construction --- qui porte le contenu
-économique du contrôle de solvabilité. Nous montrerons de plus que le budget de
-$10\,\%$ est étroit~: une révision du drift actions comprise entre $60$ et
-$110$ points de base suffit à le consommer et à rendre $\delta$ infaisable.
+optimaux de~\eqref{eq:c-icc} y sont tous nuls. La raison n'est \emph{pas} que la
+CSaR pousse le manque de chemin contre son minimum minimax~: le diagnostic
+numérique (analyse~(a)) montre que le manque libre colle au plancher
+\emph{même à $\lambda = 0$}, lorsque la CSaR est absente de l'objectif. C'est le
+terme $\E[S_T]$, combiné aux drifts actions élevés de la fenêtre
+($\hat\mu_{\mathrm{VFV}} \approx 16\,\%$), qui sélectionne une allocation
+agressive dont le profil de manque coïncide approximativement avec $\taustar$.
+La coïncidence est un effet des drifts, non une propriété de la mesure de risque~;
+elle se dégrade quand les drifts baissent (analyse~(h)). L'ICC ne joue donc pas le
+rôle d'un prix marginal qui sculpterait la solution à l'intérieur du domaine~; elle
+agit comme un \emph{révélateur de frontière}~: ses duals s'allument sur le plancher
+($\delta = \taustar$), sur un intervalle de validité qui s'annule aussitôt que la
+contrainte devient lâche, et le programme est massivement dégénéré (bornes
+actives), de sorte que le dual n'est pas nécessairement unique. C'est
+l'objet qu'elle induit --- $\taustar$, solution du minimax~\eqref{eq:taustar} ---
+qui porte le contenu économique du contrôle de solvabilité. Nous montrerons de plus
+que le budget de $10\,\%$ est étroit~: une révision du drift actions comprise entre
+$60$ et $110$ points de base suffit à le consommer et à rendre $\delta$ infaisable.
 
 \begin{remarque}[arrondi]\label{rem:arrondi}
 Un détail numérique n'est pas anodin~: si la valeur $1{,}10\,\taustar$ est
@@ -654,12 +670,17 @@ l'infaisabilité que l'ancrage visait précisément à éliminer.
 \end{remarque}
 
 Au-delà de son rôle d'ancrage, $\taustar$ possède une interprétation économique
-autonome, annoncée en introduction~: c'est le \emph{niveau de solvabilité
-incompressible} du fonds fermé, la meilleure garantie de manque espéré que
-l'allocation seule puisse offrir compte tenu des bornes de placement, du profil de
-décaissement et de la distribution des rendements. Ses variations en fonction de
-la capitalisation initiale et du rythme de décaissement sont étudiées en
-section~\ref{sec:resultats}.
+autonome, annoncée en introduction~: c'est une \emph{estimation} du niveau de
+solvabilité incompressible du fonds fermé --- la meilleure garantie de manque
+espéré que l'allocation seule puisse offrir sur un arbre donné. Comme tout
+minimum résolu sur un échantillon, $\taustar$ est systématiquement sous-estimé
+en espérance (biais d'optimisation de l'approximation par moyenne
+échantillonnale~\cite{Mak1999,Shapiro2003}) et dispersé d'une graine à l'autre~;
+la section~\ref{ssec:validation} le quantifie. Ce qu'on peut affirmer sans
+abus, c'est un \emph{ordre de grandeur} (de l'ordre de $1$ à $2\,\%$ du passif
+par période sur notre univers), pas un chiffre à trois décimales. Ses variations
+en fonction de la capitalisation initiale et du rythme de décaissement sont
+étudiées en section~\ref{sec:resultats}.
 
 Enfin, la version \emph{conditionnelle} du plancher transpose~\eqref{eq:taustar} à
 l'écriture n\oe ud par n\oe ud du modèle institutionnel~: pour chaque n\oe ud de
@@ -698,7 +719,7 @@ partielle, et nous l'assumons comme telle. CGL, enfin, est un satellite
 décorrélé (corrélation maximale de $0{,}33$ avec les autres actifs, négative
 avec VFV), plafonné à $10\,\%$~: il est là pour la queue de distribution, pas
 pour le rendement. Le risque de change, enfin, appelle une position explicite, et nous
-l'assumons~: la poche VFV est détenue \emph{non couverte} --- pratique
+l'assumons~: le compartiment VFV --- la ligne d'actions américaines --- est détenu \emph{non couvert} --- pratique
 répandue chez les caisses canadiennes pour les actions étrangères, le dollar
 canadien étant procyclique~: le dollar américain s'apprécie dans les épisodes
 d'aversion au risque, ce qui amortit les \emph{drawdowns} mesurés en CAD ---
@@ -845,23 +866,42 @@ profil est elle aussi soumise à l'analyse de sensibilité~(d).
 
 \subsection{Arbre de scénarios}\label{ssec:arbre}
 
-L'arbre est construit par échantillonnage direct du GBM calibré (graine fixée,
-\texttt{SEED0}~$= 20240601$)~: à chaque n\oe ud, les enfants reçoivent des
-tirages indépendants du vecteur de log-rendements de la période et du taux de
-croissance du passif. Le branchement est \emph{variable}~:
-$[10, 5, 5, 5, 5]$, soit $10$ enfants à la racine puis $5$ ensuite, pour un
-total de $7\,811$ n\oe uds dont $1\,561$ n\oe uds de décision et $6\,250$
-feuilles. La logique de ce choix est de densifier l'information là où elle
-compte le plus~: la décision \emph{here-and-now} à la racine est la seule qui
-sera effectivement mise en \oe uvre, et c'est elle qui bénéficie du branchement
-le plus riche~; les étages profonds, qui ne servent qu'à valoriser le recours,
-tolèrent un branchement plus grossier. Avec $6\,250$ feuilles, la queue de
-niveau $5\,\%$ de la CSaR repose sur environ $312$ scénarios --- assez pour
-que l'estimation de queue soit exploitable, ce que la validation de la
-section~\ref{ssec:validation} confirme quantitativement. La dispersion
-résiduelle due à l'échantillonnage de l'arbre est, elle, mesurée par l'étude
-inter-graines (section~\ref{ssec:validation})~; l'appariement de moments,
-alternative classique à l'échantillonnage brut, est mentionné en extension.
+L'arbre est construit par échantillonnage direct du GBM calibré, avec un
+générateur \emph{explicite} \texttt{Random.Xoshiro} amorcé par la graine
+\texttt{SEED0}~$= 20240601$. Deux points de méthode doivent être posés avant
+toute lecture des chiffres.
+
+\emph{Premier point --- reproductibilité d'une instance, non de $v^\star$.}
+Fixer la graine (et le générateur) garantit qu'une réexécution reproduit
+\emph{exactement le même arbre}, donc le même programme linéaire. Ce n'est
+\emph{pas} la reproductibilité de la valeur optimale du problème continu sous
+la loi vraie~: c'est la reproductibilité d'une \emph{instance discrétisée}
+(approximation par arbre de scénarios / SAA). Changer de version de Julia sans
+figer le générateur, ou changer de graine, change l'instance. Nous figeons
+donc à la fois Julia~$1.12$, \texttt{Xoshiro} et \texttt{SEED0}
+(section~\ref{ssec:implementation-code}).
+
+\emph{Second point --- biais Monte Carlo sur la valeur optimale.}
+Optimiser sur un arbre fini revient à résoudre un problème approximé dont la
+valeur optimale $\hat v_N$ est, en espérance, optimiste par rapport à
+$v^\star$ (biais d'optimisation de l'approximation par moyenne
+échantillonnale~\cite{Mak1999}~; cf.\ aussi le chapitre Monte Carlo du cours
+de programmation stochastique). Les surplus, CSaR et planchers lus sur l'arbre
+sont donc des grandeurs \emph{de l'instance}, à interpréter avec le biais et
+la variance d'échantillonnage documentés en
+sections~\ref{ssec:validation} et~\ref{ssec:biais-saa}.
+
+Le branchement du cas de base est \emph{variable}~: $[10, 5, 5, 5, 5]$, soit
+$10$ enfants à la racine puis $5$ ensuite, pour $7\,811$ n\oe uds dont
+$1\,561$ de décision et $6\,250$ feuilles. La logique est de densifier la
+décision \emph{here-and-now}~; les étages profonds, qui ne servent qu'à
+valoriser le recours, restent plus grossiers --- ce qui \emph{amplifie} le
+biais d'optimisation aux n\oe uds où le rapport « paramètres libres /
+réalisations observées » est le plus défavorable ($4$ poids libres pour $5$
+enfants). Avec $6\,250$ feuilles, la queue à $5\,\%$ de la CSaR repose sur
+environ $312$ scénarios. La dispersion résiduelle est mesurée par l'étude
+inter-graines~; l'effet d'un branchement plus riche est quantifié en
+section~\ref{ssec:biais-saa}.
 
 % ==================================================================
 \section{Implémentation et validation}\label{sec:implementation}
@@ -870,14 +910,17 @@ alternative classique à l'échantillonnage brut, est mentionné en extension.
 \subsection{Implémentation}\label{ssec:implementation-code}
 
 Le modèle est implémenté en Julia~1.12, la couche d'optimisation en JuMP et la
-résolution confiée à HiGHS (simplexe dual). Sur l'arbre du cas de base,
+résolution confiée à HiGHS, dont nous laissons le choix de méthode par défaut
+(JuMP ne le force pas~; HiGHS dispose du simplexe primal et dual, du point
+intérieur et de PDLP). Sur l'arbre du cas de base,
 l'équivalent déterministe compte environ $30\,000$ variables --- $7\,805$
 montants investis $x_{n,i}$, $7\,811$ actifs $A_n$, $7\,811$ déficits $D_n$,
 $6\,250$ variables de queue $u_n$ et le scalaire $\eta$ --- pour un nombre de
 contraintes du même ordre. La résolution prend environ deux secondes sur un
-ordinateur portable, et l'exécution complète du \emph{notebook} (calibration,
-cas de base, validations, évaluation hors échantillon avec ses $800$
-sous-problèmes, analyses de sensibilité) environ deux minutes. Le programme
+ordinateur portable, et l'exécution complète du \emph{notebook} hors calculs lourds prend de
+l'ordre de deux minutes~; la phase d'enrichissement d'arbre et de
+$B_{\mathrm{eval}}\in\{8,12\}$ ajoute quelques minutes (environ sept minutes
+au total sur un portable récent). Le programme
 minimax~\eqref{eq:taustar} réutilise la même génération de contraintes avec
 $\tau$ pour unique variable d'objectif~; toutes les résolutions passent par les
 deux mêmes fonctions (\texttt{solve\_alm}, \texttt{min\_tau\_uniform}),
@@ -895,16 +938,17 @@ ce qui rend abordables le balayage de $\delta$, la grille de drifts de
 l'analyse~(h), l'étude inter-graines et les $800$ sous-problèmes de
 l'évaluation roulante --- soit plusieurs centaines de résolutions pour
 l'ensemble du document, inenvisageables en nombres entiers. La seconde est
-que la théorie de la dualité s'applique sans réserve~: les multiplicateurs des
-ICC sont bien définis et directement interprétables comme prix d'ombre de la
-solvabilité, lecture qui structure toute la section~\ref{ssec:resultats-analyses}
-et qui n'aurait pas de sens propre dans un programme en nombres entiers. Le
+que les multiplicités duales des ICC sont disponibles et exploitables --- avec
+les réserves que la section~\ref{ssec:resultats-analyses} documente~: dérivée à
+droite valable sur un intervalle qui s'annule dès que la contrainte est lâche,
+et dual non nécessairement unique sous dégénérescence massive des bornes.
+Ces lectures n'auraient pas de sens propre dans un programme en nombres entiers. Le
 choix de la pile logicielle suit~: JuMP fournit une couche de modélisation
 algébrique qui colle à l'écriture mathématique
 de~\eqref{eq:objectif}--\eqref{eq:c-icc} (le code de \texttt{solve\_alm} se
 lit ligne à ligne contre la section~\ref{ssec:lp}, ce qui réduit le risque
 d'écart entre le modèle écrit et le modèle résolu), et HiGHS est un solveur
-libre dont le simplexe dual est efficace sur les LP creux de ce type et
+libre, efficace sur les LP creux de ce type, qui
 expose les duals dont nous avons besoin~; l'ensemble est reproductible sans
 licence commerciale.
 
@@ -923,27 +967,30 @@ trajectoire exige $T-1$ re-résolutions et le coût est multiplié par
 $200$ trajectoires~; ce biais de discrétisation, réel, est
 \emph{partagé} par la politique optimisée seule --- les politiques à poids
 fixes n'en dépendent pas --- et joue donc contre elle, ce qui rend la
-comparaison conservatrice. Les $200$ trajectoires bornent l'erreur type
-d'une proportion estimée à environ $\sqrt{0{,}25/200} \approx 3{,}5$ points
-de pourcentage, précision suffisante pour les écarts d'une dizaine de points
-que le tableau~\ref{tab:horsech} met en évidence entre familles de
-politiques --- mais qui commande la prudence sur les écarts fins entre
-politiques voisines, prudence que la section~\ref{ssec:resultats-he}
-exerce. Enfin, l'échantillonnage direct de l'arbre (plutôt que l'appariement
+comparaison conservatrice. Sur $200$ trajectoires, l'erreur type d'une proportion $\hat p$ vaut
+$\sqrt{\hat p(1-\hat p)/200}$~: environ $2$ points pour les proportions
+observées de $7$--$12\,\%$ (et $3{,}5$ points seulement dans le pire cas
+$p = 1/2$). Les écarts d'une dizaine de points entre familles de politiques
+(tableau~\ref{tab:horsech}) sont donc lisibles~; les écarts fins entre
+politiques voisines (Croissance vs Optimisée) se tranchent par un plan
+\emph{apparié} sur les mêmes trajectoires
+(section~\ref{ssec:resultats-he}). Enfin, l'échantillonnage direct de l'arbre (plutôt que l'appariement
 de moments de~\cite{HoylandWallace2001}) est un choix de transparence déjà
 motivé en section~\ref{ssec:revue}~: aucun post-traitement des scénarios,
 une variance d'échantillonnage assumée et mesurée.
 
-La reproductibilité est traitée comme une contrainte de conception~: données
-gelées dans un cache local (section~\ref{ssec:donnees-brutes}), graines
-aléatoires fixées et documentées pour chaque usage (arbre principal,
-validation, stabilité, simulation hors échantillon), et le \emph{notebook}
-livré est celui-là même qui a produit chaque chiffre de ce document, exécuté de
-bout en bout sur noyau vierge. Deux exécutions complètes successives
-reproduisent les tableaux à l'identique aux précisions affichées, à une
-exception connue près~: dans l'évaluation hors échantillon, où $800$
-programmes linéaires s'enchaînent, la dégénérescence de certains optima peut
-faire bouger la dernière décimale d'un agrégat d'une exécution à l'autre.
+La reproductibilité est traitée comme une contrainte de conception, dans un
+sens précis qu'il faut ne pas surinterpréter. Données gelées
+(section~\ref{ssec:donnees-brutes}), générateur \texttt{Xoshiro} explicite,
+graines documentées pour chaque usage, \texttt{Project.toml} /
+\texttt{Manifest.toml}, et \emph{notebook} livré tel quel~: deux exécutions
+successives reproduisent les tableaux de l'\emph{instance de référence} à
+l'identique (à la dégénérescence LP près sur les $1\,600$ programmes de
+l'évaluation roulante). Ce protocole \emph{ne} supprime \emph{pas} le biais
+Monte Carlo de la discrétisation~: il le rend traçable. Toute discussion des
+résultats distingue donc ce qui est propriété de l'instance (chiffres du cas
+de base) de ce qui est estimé hors arbre (évaluation en horizon roulant,
+moyennes inter-graines).
 
 \subsection{Validation}\label{ssec:validation}
 
@@ -953,8 +1000,9 @@ La mécanique est validée à trois niveaux, du plus interne au plus statistique
 La CSaR lue dans la solution du programme (valeur du bloc variationnel
 $(\eta, u)$) doit coïncider avec la CSaR recalculée \emph{ex post} sur la
 distribution du surplus terminal, par la définition en espérance conditionnelle
-de queue. Sur le cas de base, l'écart est de $3{,}6 \times 10^{-14}$ --- de
-l'ordre de l'arithmétique flottante --- ce qui vérifie simultanément
+de queue. Sur le cas de base, l'écart est inférieur à $10^{-13}$ --- de
+l'ordre de l'arithmétique flottante, et il varie d'une exécution à l'autre~:
+nous ne lui donnons donc pas de chiffres significatifs --- ce qui vérifie simultanément
 l'exactitude de la linéarisation (lemme~\ref{lem:csar-var}) et son
 implémentation.
 
@@ -1007,52 +1055,72 @@ du bloc obligataire. On notera aussi que la graine de référence fait ici
 figure d'exception --- XIC y sature le plafond à la racine là où les douze
 tirages alternatifs y placent VFV ---, point repris dans la lecture du cas de
 base (section~\ref{ssec:resultats-base}). Ensuite, la dispersion de l'objectif est importante
-($\pm 13{,}8$ pour une moyenne de $-23{,}9$)~: la valeur optimale est dominée
-par la CSaR, statistique de queue estimée sur la fraction $1-\gamma$ des
-feuilles, dont le bruit d'échantillonnage est intrinsèquement élevé. La
-décision racine est nettement plus stable que la valeur --- propriété
-heureuse, puisque c'est la décision qui est mise en \oe uvre.
+($\pm 13{,}8$ pour une moyenne de $-23{,}9$)~: au sens de Kaut et
+Wallace~\cite{KautWallace2007}, le test de stabilité \emph{in-sample} échoue,
+et c'est une information. La valeur optimale est dominée par la CSaR, statistique
+de queue estimée sur la fraction $1-\gamma$ des feuilles. La décision racine est
+nettement plus stable que la valeur dans ses grandes masses (part actions,
+socle obligataire) --- propriété heureuse, puisque c'est la décision qui est
+mise en \oe uvre.
+
+\paragraph{Dispersion de $\taustar$.}
+Les planchers, calculés puis conservés à chaque graine, se répartissent ainsi~:
+$\taustar = 0{,}0163 \pm 0{,}0130$ (min $0{,}0013$, max $0{,}0457$),
+$\taustar_{\mathrm{cond}} = 0{,}176 \pm 0{,}061$, et le rapport
+$\taustar_{\mathrm{cond}}/\taustar$ vaut $16{,}5$ en moyenne (min $5{,}6$, max
+$43$). La graine de référence ($0{,}0108$) est en dessous de la moyenne (rang
+$7$ sur $13$). $\taustar$ n'est donc pas une constante structurelle~: c'est une
+statistique d'un tirage, biaisée vers le bas
+(section~\ref{ssec:biais-saa}). Ce qui résiste, c'est l'ordre de grandeur du
+rapport conditionnel/inconditionnel. La moyenne des $\E[S_T]$ in-sample sur les
+douze graines, $41{,}4 \pm 8{,}1$, estime $\E[\hat v_N]$ au sens de la borne
+optimiste de~\cite{Mak1999}.
 
 % ==================================================================
 \section{Résultats}\label{sec:resultats}
 % ==================================================================
 
-Tous les chiffres de cette section proviennent d'une exécution unique du
-\emph{notebook} sur les données gelées (section~\ref{ssec:donnees-brutes}),
-avec $\gamma = 0{,}95$ --- le niveau standard de la littérature
-CVaR~\cite{RU2000}, dont la sensibilité n'est pas explorée ici --- et
-$\lambda = 1$ sauf mention contraire.
+Tous les chiffres de cette section, sauf mention contraire, proviennent de
+l'\emph{instance de référence}~: données gelées
+(section~\ref{ssec:donnees-brutes}), arbre $[10,5,5,5,5]$ tiré avec
+\texttt{Xoshiro} et \texttt{SEED0}, $\gamma = 0{,}95$, $\lambda = 1$. Ce sont
+les grandeurs optimales de ce programme discrétisé --- reproductibles à
+l'identique --- et non des estimateurs sans biais de $v^\star$ sous la loi
+continue (sections~\ref{ssec:arbre} et~\ref{ssec:biais-saa}). La sensibilité à
+$\lambda$ et $\gamma$ est explorée en analyse~(a)~: elle est nulle sur les
+poids dès que les bornes mordent.
 
 \subsection{Cas de base}\label{ssec:resultats-base}
 
-Le plancher de faisabilité calculé par le programme
-minimax~\eqref{eq:taustar} vaut $\taustar = 0{,}0108$~: le fonds fermé ne peut
-garantir, quelle que soit son allocation, un manque espéré uniforme inférieur à
-$1{,}08\,\%$ du passif par période. La tolérance du cas de base s'en déduit par
+Sur l'arbre de référence (graine \texttt{SEED0}), le plancher calculé par le
+programme minimax~\eqref{eq:taustar} vaut $\taustar = 0{,}0108$. Ce chiffre n'est
+\emph{pas} la solvabilité incompressible du fonds~: c'est la réalisation d'un
+estimateur, en dessous de la moyenne inter-graines
+($0{,}016 \pm 0{,}013$ sur douze graines, section~\ref{ssec:validation}). Ce qu'on
+peut affirmer, c'est un ordre de grandeur~: la solvabilité incompressible est de
+l'ordre de $1$ à $2\,\%$ du passif par période, avec une incertitude
+d'échantillonnage du même ordre. La tolérance du cas de base s'en déduit par
 l'ancrage~\eqref{eq:delta-ancrage}, $\delta = \lceil 1{,}10\,\taustar\rceil =
-0{,}0120$ (arrondi par excès, remarque~\ref{rem:arrondi}). Le programme
-complet se résout au statut \texttt{OPTIMAL} avec les valeurs suivantes~:
-surplus terminal espéré $\E[S_T] = 56{,}15$, $\CSaR_{0{,}95}(S_T) = -14{,}43$
-(vérification ex post~: écart de $3{,}6\times10^{-14}$,
-section~\ref{ssec:validation}), et un ratio de capitalisation terminal de
-moyenne $1{,}48$, de minimum $0{,}59$ et de cinquième centile $0{,}97$, pour
-une probabilité de sous-financement terminal $\prob(\mathrm{FR}_T < 1) =
-7{,}2\,\%$. La lecture économique de ce couple est le résumé le plus compact
-du problème~: partant de l'équilibre exact, un fonds fermé qui n'a que son
-allocation pour levier termine en moyenne largement sur-capitalisé --- les
-drifts de la fenêtre y pourvoient --- mais conserve une masse de scénarios dont le
-pire descend jusqu'à $\mathrm{FR} = 0{,}59$, que ni l'objectif ni les contraintes ne
-peuvent éliminer~: on ne diversifie pas un décaissement.
+0{,}0120$ (arrondi par excès, remarque~\ref{rem:arrondi}), \emph{relativement à
+cet arbre}. Le programme complet se résout au statut \texttt{OPTIMAL} avec~:
+surplus terminal $\E[S_T] = 56{,}15$ \emph{sur cet arbre} (valeur optimiste~; la
+moyenne inter-graines est $41{,}4 \pm 8{,}1$), $\CSaR_{0{,}95}(S_T) = -14{,}43$
+(vérification ex post~: écart $< 10^{-13}$), ratio de capitalisation terminal de
+moyenne $1{,}48$, minimum $0{,}59$, cinquième centile $0{,}97$, et
+$\prob(\mathrm{FR}_T < 1) = 7{,}2\,\%$. Lecture~: partant de l'équilibre exact, un
+fonds fermé qui n'a que son allocation pour levier termine en moyenne
+sur-capitalisé --- les drifts de la fenêtre y pourvoient --- mais conserve une
+masse de scénarios dont le pire descend à $\mathrm{FR} = 0{,}59$~: on ne
+diversifie pas un décaissement.
 
-Les multiplicateurs des ICC~\eqref{eq:c-icc} sont nuls aux quatre périodes.
-Conformément à l'analyse de la section~\ref{ssec:taustar}, ce n'est ni une
-anomalie ni le signe d'une contrainte inutile~: l'objectif CSaR pousse
-lui-même le manque de chemin contre son minimum minimax (le profil libre,
-c'est-à-dire sans ICC, culmine à $0{,}0109 \approx \taustar$), de sorte que la
-marge de $10\,\%$ laisse la contrainte lâche. Le balayage en $\delta$ de la
-section~\ref{ssec:resultats-analyses} localisera précisément où les duals
-s'allument --- exactement sur le plancher --- et l'analyse~(h) chiffrera ce que
-vaut la marge en termes de robustesse aux croyances.
+Les multiplicateurs des ICC~\eqref{eq:c-icc} sont nuls aux quatre périodes. Ce
+n'est ni une anomalie ni le signe d'une contrainte inutile, et ce n'est
+\emph{pas} non plus un effet de la CSaR~: le manque libre colle au plancher
+même à $\lambda = 0$ (analyse~(a)). C'est $\E[S_T]$ sous drifts élevés qui
+sélectionne une allocation agressive quasi minimax en manque. Le balayage
+en $\delta$ (analyse~(b)) localise où les duals s'allument --- sur le plancher,
+sur un intervalle qui s'annule aussitôt --- et l'analyse~(h) chiffre le budget de
+robustesse aux croyances.
 
 \begin{table}[htbp]
 \centering
@@ -1073,28 +1141,18 @@ $t=4$ & $0{,}355$ & $0{,}166$ & $0{,}054$ & $0{,}395$ & $0{,}031$ \\
 \end{table}
 
 L'allocation (tableau~\ref{tab:alloc}) est agressive et remarquablement
-stable~: environ $70$--$75\,\%$ d'actions à toutes les périodes, le plafond de
-$40\,\%$ étant saturé par XIC à la racine puis par VFV ensuite, un socle
-obligataire proche de son plancher, et un or dont le comportement est le seul
-élément vraiment dynamique~: saturé à son plafond de $10\,\%$ à la décision
-initiale --- où l'incertitude à couvrir est maximale ---, il est ramené à
-$3$--$4\,\%$ dès que l'information commence à se révéler. La décision racine
-mérite une lecture fine~: à $t=0$ le modèle préfère XIC (au plafond) à VFV
-($30\,\%$), malgré le drift supérieur de VFV --- arbitrage de diversification
-contre la corrélation XIC--VFV et le passif à financer immédiatement --- puis
-bascule durablement vers VFV à mesure que l'horizon se raccourcit. Cette
-lecture appelle toutefois une relativisation immédiate, que l'étude
-inter-graines (section~\ref{ssec:validation}) impose~: dans les douze
-réalisations alternatives de l'arbre, c'est VFV qui sature son plafond à la
-racine ($0{,}400 \pm 0{,}000$) et XIC qui est intérieur
-($0{,}281 \pm 0{,}098$) --- la configuration de la graine de référence est
-donc atypique parmi les treize tirages, et l'arbitrage de diversification
-qu'on vient de décrire est propre à cette réalisation. Le message robuste,
-lui, est celui que les treize tirages partagent~: une part actions totale de
-l'ordre de $70$--$75\,\%$ et un socle obligataire au plancher~; la
-répartition fine entre XIC et VFV relève, elle, du bruit d'échantillonnage de
-l'arbre. On retrouvera cette préférence pour les actions, et sa fragilité,
-dans la sensibilité aux drifts.
+stable dans ses grandes masses~: environ $70$--$75\,\%$ d'actions à toutes les
+périodes, un socle obligataire proche de son plancher, et un or saturé à son
+plafond de $10\,\%$ à la décision initiale puis ramené à $3$--$4\,\%$. La
+répartition fine XIC/VFV à la racine de \emph{cet} arbre (XIC au plafond, VFV à
+$30\,\%$) est du \emph{bruit de discrétisation}~: sur les douze graines
+alternatives, c'est VFV qui sature son plafond ($0{,}400 \pm 0{,}000$) et XIC
+qui est intérieur ($0{,}281 \pm 0{,}098$). Enrichir le branchement des étages
+profonds (section~\ref{ssec:biais-saa}) confirme la convergence vers VFV au
+plafond. Le message robuste est donc la part actions totale et le socle
+obligataire au plancher~; on ne commente pas l'arbitrage XIC/VFV comme un
+choix économique. On retrouvera la préférence pour les actions, et sa
+fragilité, dans la sensibilité aux drifts.
 
 \subsection{Évaluation hors échantillon}\label{ssec:resultats-he}
 
@@ -1107,8 +1165,10 @@ mauvaise spécification en fin de section. La politique \emph{optimisée} appliq
 racine du cas de base, puis, à chaque date intermédiaire de chaque trajectoire,
 reconstruit un arbre depuis l'état courant (branchement $4$), recalcule
 $\taustar$ du sous-problème, ré-ancre $\delta$ par~\eqref{eq:delta-ancrage} et
-se ré-optimise --- soit $800$ programmes linéaires, tous faisables (l'ancrage
-tient partout, vérifié par assertion). Elle est comparée à trois politiques à
+se ré-optimise --- soit $800$ sous-problèmes~; chacun requérant la résolution
+du minimax puis du programme complet, cela représente $1\,600$ programmes
+linéaires par évaluation, tous faisables (l'ancrage tient partout, vérifié par
+assertion). Elle est comparée à trois politiques à
 poids constants respectant les mêmes bornes~: un \emph{benchmark}
 institutionnel diversifié à $50\,\%$ d'actions ($25/30/15/25/5$ dans l'ordre des actifs),
 un portefeuille \emph{prudent} dominé par les obligations ($10/45/30/10/5$) et
@@ -1138,12 +1198,12 @@ Optimisée (multi-étapes) & $43{,}6$ & $-16{,}2$ & $11{,}5\,\%$ & $35{,}0\,\%$ 
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{comparaison_benchmarks.png}
+\includegraphics[width=\textwidth]{comparaison_benchmarks.pdf}
 \caption{Distribution du surplus terminal $S_T$ par politique sur les $200$
-trajectoires hors échantillon~: boîtes à moustaches (gauche) et densités
-superposées (droite). Le trait pointillé marque le seuil de solvabilité
-$S_T = 0$~; la masse à sa gauche est le sous-financement terminal, que la CSaR
-pénalise.}
+trajectoires hors échantillon~: boîtes à moustaches colorées par politique
+(gauche) et fonctions de répartition empiriques (droite). Le trait pointillé
+marque le seuil $S_T = 0$~; une ECDF évite l'étalement de masse de part et
+d'autre de zéro qu'induirait un noyau de densité.}
 \label{fig:comparaison}
 \end{figure}
 
@@ -1167,30 +1227,40 @@ dimensionnant.
 Second temps, plus inconfortable et assumé comme tel~: face au portefeuille
 croissance --- construit \emph{a posteriori} en copiant l'agressivité moyenne
 de la solution optimale ---, la politique multi-étapes fait essentiellement
-jeu égal ($\E[S_T]$ de $43{,}6$ contre $46{,}1$, CSaR et métriques de chemin
-quasi identiques, léger avantage de chemin à l'optimisée). L'explication est
-dans le tableau~\ref{tab:alloc}~: l'allocation optimale varie peu d'une
-période à l'autre, car les bornes de placement saturées compriment l'espace où
-le recours pourrait s'exprimer~; une politique fixe bien choisie en est alors
-une excellente approximation. Deux réserves empêchent toutefois d'en conclure
-que la flexibilité ne vaut rien. D'une part, le portefeuille croissance n'est
-pas une politique disponible \emph{ex ante}~: il est calqué sur la solution du
-modèle, qu'il faut avoir résolu pour le connaître --- c'est un adversaire
-construit après coup, et le fait même qu'il soit dur à battre est une
-validation de la décision moyenne du modèle plutôt qu'un désaveu du recours.
-D'autre part, l'avantage résiduel de l'optimisée est concentré exactement où
-la théorie le prédit~: sur la solvabilité de chemin ($35{,}0\,\%$ contre
-$36{,}0\,\%$, et un $\min_t \mathrm{FR}_t$ moyen comparable), qu'elle seule
-surveille explicitement via le ré-ancrage de $\delta$ à chaque date. Sur cette
-fenêtre de calibration, la valeur de la flexibilité multi-étapes est donc
-réelle mais modeste, et logée dans les queues et le chemin plutôt que dans la
-moyenne~; la sensibilité aux drifts, ci-dessous, montrera que cette conclusion
-est elle-même dépendante de la générosité de la fenêtre.
+jeu égal au niveau des moyennes non appariées ($\E[S_T]$ de $43{,}6$ contre
+$46{,}1$). Le plan est toutefois \emph{apparié} (mêmes trajectoires)~: la
+différence $\Delta = S_T^{\mathrm{opt}} - S_T^{\mathrm{cro}}$ vaut
+$-2{,}49$ (erreur type appariée $0{,}47$, soit $|t| \approx 5$), et le test de
+McNemar sur le sous-financement compte $6$ discordances en faveur de la
+Croissance contre $0$ pour l'optimisée. La Croissance domine donc franchement
+hors échantillon sur ces deux critères~; l'honnêteté commande de le dire ainsi
+plutôt que d'invoquer l'« épaisseur du trait ». L'explication structurelle
+combine le tableau~\ref{tab:alloc} (bornes saturées) et le surapprentissage
+(section~\ref{ssec:biais-saa})~: le modèle riche perd sa prime hors
+échantillon. Réserve essentielle~: le portefeuille croissance n'est pas
+disponible \emph{ex ante} --- il est calqué sur la solution du modèle. L'optimisée
+conserve un léger avantage de chemin ($35{,}0\,\%$ contre $36{,}0\,\%$ de
+$\prob(\min_t \mathrm{FR}_t < 1)$), seul lieu où le ré-ancrage de $\delta$ peut
+encore s'exprimer.
+
+\paragraph{Encadrement de l'optimum.}
+La lecture croisée des deux évaluations est le résultat méthodologique central
+de cette section~\cite{Mak1999,KautWallace2007}. La moyenne des
+$\E[S_T]$ in-sample sur douze graines estime $\E[\hat v_N]$, borne
+\emph{inférieure} (optimiste) de la vraie valeur $v^\star$~; la performance hors
+échantillon de la politique optimisée, admissible, est une borne
+\emph{supérieure}. Sur nos chiffres, en lecture surplus~: $56{,}15$ sur l'arbre de référence
+(réalisation favorable), $41{,}4 \pm 8{,}1$ en moyenne inter-graines, et
+$43{,}6$ hors échantillon pour la politique multi-étapes. L'arbre de référence
+surestime d'une douzaine de points la performance réalisable hors échantillon~;
+la moyenne inter-graines est, elle, cohérente avec l'évaluation fraîche. La
+section~\ref{ssec:biais-saa} nomme le biais d'optimisation et l'encadrement au
+sens de~\cite{Mak1999}.
 
 Reste la direction que l'évaluation précédente ne couvre pas~: le risque de
 modèle. On y répond par un test de \emph{mauvaise spécification}~: $200$
 nouvelles trajectoires (graine dédiée) sont simulées sous le drift sobre de
-l'analyse~(a) --- $5\,\%$ log pour XIC et VFV, covariances inchangées ---
+l'analyse~(d) --- $5\,\%$ log pour XIC et VFV, covariances inchangées ---
 pendant que la politique optimisée \emph{conserve ses croyances de la
 fenêtre}~: décision initiale du cas de base, sous-arbres construits avec les
 drifts estimés, ré-ancrage de $\delta$ au plancher de chaque sous-arbre,
@@ -1218,13 +1288,13 @@ Optimisée (multi-étapes) & $-7{,}0$ & $-50{,}5$ & $64{,}5\,\%$ & $77{,}0\,\%$ 
 \end{tabular}
 \end{table}
 
-Avant toute lecture fine, le rappel de précision s'impose~: à $200$
-trajectoires, l'erreur type d'une proportion avoisine $3{,}5$ points, et les
-écarts entre Croissance et Optimisée dans le tableau~\ref{tab:stress}
-($1{,}5$ point de sous-financement, $0{,}8$ de surplus moyen) sont dans
-l'épaisseur du trait. Trois constats robustes s'en dégagent néanmoins.
+Avant toute lecture fine~: à $200$ trajectoires et pour des proportions de
+l'ordre de $60$--$80\,\%$, l'erreur type d'un niveau avoisine $3$ points, mais
+les écarts Croissance/Optimisée du tableau~\ref{tab:stress} restent dans
+l'épaisseur du trait au sens d'un test non apparié. Trois constats robustes
+s'en dégagent néanmoins.
 D'abord, le tableau est le pendant \emph{par trajectoires} de la
-sensibilité~(a)~: sous croyances sobres, plus aucune politique ne protège ---
+sensibilité~(d)~: sous croyances sobres, plus aucune politique ne protège ---
 tous les surplus moyens sont négatifs, et le sous-financement terminal de la
 politique optimisée passe de $11{,}5$ à $64{,}5\,\%$. La sécurité du
 tableau~\ref{tab:horsech} était bien empruntée à la fenêtre, et aucun talent
@@ -1245,44 +1315,56 @@ précision~: au bruit d'échantillonnage près.
 
 Les analyses qui suivent déclinent la même question --- qu'est-ce qui, dans
 les résultats du cas de base, est structurel, et qu'est-ce qui est emprunté à
-la fenêtre d'estimation~? --- le long de sept axes. Le fil conducteur en est
-le plancher $\taustar$ introduit en section~\ref{ssec:taustar}.
+la fenêtre ou à l'arbre~? --- le long de huit axes, dans l'\emph{ordre du
+notebook} (a)--(h), pour que chaque tableau se lise contre la cellule qui l'a
+produit.
 
-\paragraph{(a) Sensibilité aux rendements espérés~: ce que la fenêtre donne.}
-La section~\ref{ssec:calibration} a établi que les drifts actions sont à la
-fois décisifs et fragiles. On les remplace donc par un drift \emph{sobre} de
-$5\,\%$ (log) pour XIC comme VFV --- ordre de grandeur d'une prime de risque
-de long terme --- en conservant tout le reste, covariances comprises, et l'on
-recalcule l'ensemble du cas de base~:
+\paragraph{(a) Aversion au risque~: $\lambda$ et $\gamma$ ne pilotent rien.}
+On prolonge la grille jusqu'à $\lambda = 1000$ et on fait varier $\gamma$~:
 
 \begin{center}
-\begin{tabular}{lcc}
+\begin{tabular}{cccccc}
 \toprule
- & Base (fenêtre 2013--2026) & Drift sobre ($5\,\%$) \\
+$\lambda$ & $\E[S_T]$ & $\CSaR$ ex post & Décision racine (XIC, XLB, XRB, VFV, CGL) \\
 \midrule
-$\E[S_T]$                 & $56{,}15$  & $10{,}60$ \\
-$\CSaR_{0{,}95}(S_T)$     & $-14{,}43$ & $-38{,}92$ \\
-$\prob(\mathrm{FR}_T<1)$  & $7{,}2\,\%$ & $40{,}1\,\%$ \\
-$\taustar$                & $0{,}0108$ & $0{,}0423$ \\
+$0$ & $56{,}62$ & $-16{,}40$ & $(0{,}30,\ 0{,}15,\ 0{,}05,\ 0{,}40,\ 0{,}10)$ \\
+$1$ & $56{,}15$ & $-14{,}43$ & $(0{,}40,\ 0{,}15,\ 0{,}05,\ 0{,}30,\ 0{,}10)$ \\
+$5$ & $55{,}37$ & $-14{,}12$ & $(0{,}40,\ 0{,}15,\ 0{,}05,\ 0{,}30,\ 0{,}10)$ \\
+$20$ & $54{,}90$ & $-14{,}06$ & $(0{,}40,\ 0{,}15,\ 0{,}05,\ 0{,}30,\ 0{,}10)$ \\
+$100$ & $54{,}61$ & $-14{,}06$ & $(0{,}40,\ 0{,}15,\ 0{,}05,\ 0{,}30,\ 0{,}10)$ \\
+$1000$ & $54{,}47$ & $-14{,}05$ & $(0{,}40,\ 0{,}15,\ 0{,}05,\ 0{,}30,\ 0{,}10)$ \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-La lecture est sans ambiguïté~: sous croyances sobres, le surplus moyen fond
-de $81\,\%$, la probabilité de sous-financement terminal est multipliée par
-plus de cinq, et la solvabilité incompressible $\taustar$ par près de quatre.
-La sécurité apparente du cas de base --- $7\,\%$ de sous-financement, queue
-contenue --- est donc, pour l'essentiel, \emph{empruntée} au marché haussier
-de la fenêtre d'estimation~: environ $33$ points de probabilité de
-sous-financement ($40{,}1\,\%$ contre $7{,}2\,\%$) reposent sur la
-persistance de drifts actions historiquement exceptionnels. C'est le résultat
-que nous considérons comme le plus important de ce travail pour la pratique~:
-aucune optimisation ne crée cette sécurité, elle ne fait que la transporter
-depuis les hypothèses de rendement.
+\begin{center}
+\begin{tabular}{cccc}
+\toprule
+$\gamma$ & $\E[S_T]$ & $\CSaR$ ex post & Décision racine \\
+\midrule
+$0{,}90$ & $56{,}10$ & $-6{,}28$ & $(0{,}40,\ 0{,}15,\ 0{,}05,\ 0{,}30,\ 0{,}10)$ \\
+$0{,}95$ & $56{,}15$ & $-14{,}43$ & $(0{,}40,\ 0{,}15,\ 0{,}05,\ 0{,}30,\ 0{,}10)$ \\
+$0{,}99$ & $56{,}34$ & $-29{,}01$ & $(0{,}40,\ 0{,}15,\ 0{,}05,\ 0{,}30,\ 0{,}10)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
 
-\paragraph{(b) Balayage de la tolérance~: la frontière de faisabilité.}
-On fait varier $\delta$ autour du plancher, toutes choses égales par
-ailleurs~:
+Un facteur mille sur l'aversion au risque, et trois niveaux de confiance, ne
+déplacent \emph{aucun} poids dès que $\lambda \ge 1$~: les bornes mordent avant
+les préférences. La frontière n'est pas « étroite »~: elle est
+\emph{inerte}. Bénéfice annexe~: à $\lambda = 0$, le bloc CSaR du LP affiche
+environ $-51$ contre $-16{,}4$ recalculé ex post --- validation numérique de la
+remarque~\ref{rem:lambda-zero} (indétermination de $(\eta, u)$ à poids nul).
+
+Diagnostic causal du « quasi-minimax »~: le manque libre maximal sans ICC vaut
+$0{,}0111$ à $\lambda = 0$, $0{,}0109$ à $\lambda = 1$, $0{,}0109$ à
+$\lambda = 5$, contre $\taustar = 0{,}0108$. Ce n'est donc pas la CSaR qui
+produit l'effet, c'est $\E[S_T]$. Que la contrainte ne soit pas vide se
+vérifie sur les politiques à poids fixes~: Croissance $0{,}0122$, Benchmark
+$0{,}0196$, Prudent $0{,}0552$, dominée obligataire $0{,}0737$.
+
+\paragraph{(b) Balayage de la tolérance~: frontière, duals par période, diff.\ finies.}
+On fait varier $\delta$ autour du plancher~:
 
 \begin{center}
 \begin{tabular}{cccccc}
@@ -1300,88 +1382,86 @@ $0{,}0217$ & $2{,}00$ & oui & $56{,}15$ & $-14{,}43$ & $0$ \\
 \end{tabular}
 \end{center}
 
-Trois enseignements. D'abord la frontière est exactement où la théorie la
-place~: infaisable strictement sous $\taustar$, faisable au plancher --- à
-condition d'y prendre $\taustar$ \emph{exact}~: le point à $\delta =
-\taustar$ arrondi au plus proche ($0{,}0108$, ratio $0{,}997$) est
-infaisable, illustration numérique directe de la
-remarque~\ref{rem:arrondi}, désormais lisible dans le tableau. Ensuite, les duals ne sont non nuls
-que \emph{sur} la frontière ($57{,}7$ au total, sans valeur aberrante, avec un
-coût visible~: $\E[S_T]$ y perd $0{,}34$)~; dès $1{,}10\,\taustar$ la
-contrainte est lâche et la solution rejoint l'optimum libre. L'ICC de ce
-problème n'est donc pas un prix marginal qui sculpte la solution à
-l'intérieur du domaine, mais une \emph{contrainte de frontière}~: tout son
-contenu économique est concentré dans le plancher $\taustar$ qu'elle induit.
-Enfin, cette géométrie explique les duals nuls du cas de base sans les
-excuser~: la marge de $10\,\%$ ne « fait rien » au cas de base, et l'on est en
-droit de demander ce qu'elle achète --- c'est l'objet de l'analyse~(h).
+Trois enseignements. D'abord la frontière est où la théorie la place~:
+infaisable strictement sous $\taustar$, faisable au plancher exact~; le point
+arrondi au plus proche ($0{,}0108$, ratio $0{,}997$) est infaisable
+(remarque~\ref{rem:arrondi}). Ensuite, les duals ne sont non nuls que \emph{sur} la frontière, et une seule
+période mord ($t=2$, dual $\approx -57{,}7$~; les autres sont nuls). Leur
+somme ne doit pas se lire comme un prix marginal utilisable~: par différences
+finies, le dual s'éteint déjà entre $1{,}005\,\taustar$ et
+$1{,}01\,\taustar$, et la variation d'objectif entre $\taustar$ et
+$1{,}10\,\taustar$ n'est que $\approx 0{,}31$, loin de ce que le dual
+prédit sur $\Delta\mathrm{RHS}$. Le dual est une dérivée à droite sur un
+intervalle quasi-nul, et le programme est dégénéré. L'ICC est une contrainte de
+frontière~: son contenu économique est le plancher $\taustar$ qu'elle induit.
 
 \paragraph{(c) Capitalisation initiale~: la convexité du plancher.}
 En faisant varier le ratio de capitalisation initial à passif donné, on
-obtient $\taustar = 0{,}0402$ pour $\mathrm{FR}_0 = 0{,}9$, $0{,}0108$ pour
-$\mathrm{FR}_0 = 1$ et $0{,}0022$ pour $\mathrm{FR}_0 = 1{,}1$, avec des
+obtient $\taustar \approx 0{,}0402$ pour $\mathrm{FR}_0 = 0{,}9$, $0{,}0108$ pour
+$\mathrm{FR}_0 = 1$ et $\approx 0{,}0021$ pour $\mathrm{FR}_0 = 1{,}1$, avec des
 surplus moyens de $36{,}5$, $56{,}2$ et $75{,}8$ et des probabilités de
 sous-financement de $16{,}5\,\%$, $7{,}2\,\%$ et $2{,}5\,\%$. Dix points de
-capitalisation initiale déplacent donc la solvabilité incompressible de près
-d'un facteur quatre dans chaque direction~: $\taustar$ est fortement convexe
-en la dotation initiale, et un fonds fermé sous-doté part avec un handicap de
-solvabilité qu'aucune allocation ne rattrape --- la version quantitative de
-l'adage selon lequel, en run-off, tout se joue à la fermeture.
+capitalisation initiale déplacent la solvabilité incompressible d'un facteur
+proche de quatre dans chaque direction~: un fonds fermé sous-doté part avec un
+handicap qu'aucune allocation ne rattrape.
 
-\paragraph{(d) Rythme de décaissement.}
-Un profil de décaissement plat à $2\,\%$ ramène $\taustar$ à $0{,}0102$ et
-porte $\E[S_T]$ à $63{,}2$ ($\prob(\mathrm{FR}_T<1) = 3{,}9\,\%$)~; un profil
-accéléré de $3$ à $6\,\%$ pousse $\taustar$ à $0{,}0138$ et fait chuter
-$\E[S_T]$ à $44{,}7$ ($12{,}9\,\%$). La pente des prestations agit ainsi sur
-la solvabilité incompressible dans le même sens que la sous-capitalisation,
-mais plus doucement~: le levier dominant reste $\mathrm{FR}_0$.
+\paragraph{(d) Sensibilité aux rendements espérés~: ce que la fenêtre donne.}
+On remplace les drifts actions par un drift \emph{sobre} de $5\,\%$ (log) pour
+XIC comme VFV, covariances inchangées~:
 
-\paragraph{(e) Aversion au risque.}
-Le long de la grille $\lambda \in \{0,\ 0{,}5,\ 1,\ 2,\ 5\}$, l'espérance du
-surplus décroît de $56{,}6$ à $55{,}4$ pendant que la CSaR (recalculée ex post
-pour $\lambda = 0$, conformément à la remarque~\ref{rem:lambda-zero})
-s'améliore de $-16{,}4$ à $-14{,}1$~: la frontière espérance--CSaR est
-étroite. La cause est la même que celle rencontrée à la
-section~\ref{ssec:resultats-he}~: les bornes de placement mordent avant les
-préférences, et l'allocation ne peut pas s'écarter beaucoup de son point de
-saturation quelle que soit l'aversion. Seule la décision racine bouge
-sensiblement (XIC passe de $30$ à $40\,\%$ entre $\lambda = 0$ et
-$\lambda \ge 0{,}5$).
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+ & Base (fenêtre 2013--2026) & Drift sobre ($5\,\%$) \\
+\midrule
+$\E[S_T]$                 & $56{,}15$  & $10{,}60$ \\
+$\CSaR_{0{,}95}(S_T)$     & $-14{,}43$ & $-38{,}92$ \\
+$\prob(\mathrm{FR}_T<1)$  & $7{,}2\,\%$ & $40{,}1\,\%$ \\
+$\taustar$                & $0{,}0108$ & $0{,}0423$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Sous croyances sobres, le surplus moyen fond de $81\,\%$, la probabilité de
+sous-financement terminal est multipliée par plus de cinq, et $\taustar$ par
+près de quatre. Environ $33$ points de probabilité de sous-financement
+reposent sur la persistance de drifts actions historiquement exceptionnels.
+C'est le résultat le plus important du travail pour la pratique~: aucune
+optimisation ne crée cette sécurité.
+
+\paragraph{(e) Rythme de décaissement.}
+Un profil plat à $2\,\%$ ramène $\taustar$ à $0{,}0102$ et porte $\E[S_T]$ à
+$63{,}2$ ($\prob(\mathrm{FR}_T<1) = 3{,}9\,\%$)~; un profil accéléré de $3$ à
+$6\,\%$ pousse $\taustar$ à $0{,}0138$ et fait chuter $\E[S_T]$ à $44{,}7$
+($12{,}9\,\%$). La pente des prestations agit dans le même sens que la
+sous-capitalisation, plus doucement~: le levier dominant reste
+$\mathrm{FR}_0$.
 
 \paragraph{(f) Le recours en action.}
-Aux n\oe uds de profondeur $t = 2$ ($50$ n\oe uds), la part actions de la
-solution est corrélée positivement au ratio de capitalisation courant
-($+0{,}24$) et la part d'or négativement ($-0{,}24$)~: par quartile de
-$\mathrm{FR}$, la part actions passe de $68\,\%$ (quartile le plus pauvre,
-$\mathrm{FR} \in [0{,}85, 1{,}08]$) à $77\,\%$ (le plus riche), l'or de
-$5{,}4\,\%$ à $3{,}1\,\%$. Le modèle applique donc une gestion
-\emph{procyclique} du surplus --- prendre du risque quand le coussin le
-permet, se couvrir quand il s'amincit --- qui est la signature qualitative
-attendue d'un recours rationnel sous contrainte de solvabilité~; son
-amplitude, quelques points de pourcentage, est là encore bridée par les
-bornes.
+Aux n\oe uds de profondeur $t = 2$ ($50$ n\oe uds), la part actions est
+corrélée positivement au ratio de capitalisation courant ($+0{,}24$) et la part
+d'or négativement ($-0{,}24$)~: par quartile de $\mathrm{FR}$, la part actions
+passe de $68\,\%$ à $77\,\%$, l'or de $5{,}4\,\%$ à $3{,}1\,\%$. Gestion
+\emph{procyclique} du surplus, d'amplitude bridée par les bornes.
 
-\paragraph{(g) Le prix de la cohérence temporelle.}
-Le plancher conditionnel, calculé en transposant le minimax à l'écriture
-n\oe ud par n\oe ud du modèle institutionnel (section~\ref{ssec:taustar}),
-vaut $\taustar_{\mathrm{cond}} = 0{,}2139$, contre $\taustar = 0{,}0108$ en
-écriture inconditionnelle --- un rapport de vingt. Exiger la tenue du seuil
-dans \emph{chaque} état, et non en moyenne vue de la racine, est donc hors de
-portée d'un fonds fermé~: il faudrait tolérer un manque espéré de plus de
-$21\,\%$ du passif état par état pour que la contrainte conditionnelle soit
-seulement réalisable. L'écart $\taustar_{\mathrm{cond}} - \taustar =
-0{,}2030$ est la mesure, en points de passif, de ce que le fonds a perdu en
-capacité de solvabilité en perdant ses cotisations~: c'est l'argument
-économique le plus net de ce travail en faveur des mécanismes de redressement,
-et la justification a posteriori du choix d'ICC inconditionnelles fait en
-section~\ref{ssec:positionnement}.
+\paragraph{(g) Le prix de la cohérence temporelle --- résultat robuste.}
+Le plancher conditionnel vaut $\taustar_{\mathrm{cond}} = 0{,}2139$ sur l'arbre
+de référence, contre $\taustar = 0{,}0108$ --- un rapport d'environ vingt. Sur
+douze graines, le rapport $\taustar_{\mathrm{cond}}/\taustar$ ne descend jamais
+sous $5{,}6$ et vaut environ $16$--$19$ en moyenne. \emph{C'est sur cet ordre de
+grandeur --- un facteur dix à vingt --- que porte la conclusion du document},
+et non sur la valeur ponctuelle $1{,}08\,\%$. Exiger la tenue du seuil dans
+chaque état est hors de portée d'un fonds privé de cotisations~; l'écart
+chiffre en creux la valeur des cotisations de redressement, et justifie a
+posteriori le choix d'ICC inconditionnelles
+(section~\ref{ssec:positionnement}).
 
-\paragraph{(h) Utilité des ICC~: le budget de robustesse, et son étroitesse.}
-Reste la question laissée ouverte par le balayage~(b)~: à quoi sert une marge
-que le cas de base ne consomme pas~? On y répond en fixant $\delta = 0{,}0120$
---- sa valeur du cas de base --- et en faisant glisser les drifts actions de
-leur valeur estimée ($\alpha = 1$) vers le drift sobre de $5\,\%$
-($\alpha = 0$)~:
+\paragraph{(h) Utilité des ICC~: budget de robustesse, et protocole de statique comparative.}
+On fixe $\delta = 0{,}0120$ et on fait glisser les drifts actions de leur
+valeur estimée ($\alpha = 1$) vers le drift sobre ($\alpha = 0$), à
+$\Sigma$ et graine \emph{fixées}~: \texttt{MvNormal} retire alors les mêmes
+normales standard décalées --- statique comparative pure, sans bruit de
+rééchantillonnage.
 
 \begin{center}
 \begin{tabular}{ccccc}
@@ -1393,34 +1473,158 @@ $1{,}00$ & $0{,}163$ & $0{,}0109$ & $0{,}0108$ & oui (duals nuls) \\
 $0{,}95$ & $0{,}157$ & $0{,}0116$ & $0{,}0115$ & oui (duals nuls) \\
 $0{,}90$ & $0{,}152$ & $0{,}0122$ & $0{,}0121$ & \textbf{non} \\
 $0{,}80$ & $0{,}140$ & $0{,}0138$ & $0{,}0136$ & non \\
-$0{,}60$ & $0{,}118$ & $0{,}0182$ & $0{,}0167$ & non \\
 $0{,}00$ & $0{,}050$ & $0{,}0463$ & $0{,}0423$ & non \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-Deux faits structurent ce tableau. D'abord, à chaque niveau de croyances, le
-manque libre colle au plancher ($\taustar_\alpha$ à quelques $10^{-4}$
-près)~: l'objectif CSaR est presque minimax en manque de chemin, et l'ICC ne
-connaît pour ainsi dire que deux états --- dormante ou infaisable. La
-transition se produit entre $\alpha = 0{,}95$ et $\alpha = 0{,}90$~: une
-révision du drift VFV comprise entre $60$ et $110$ points de base --- bien
-moins que l'erreur type d'estimation de ce même drift
-(section~\ref{ssec:calibration}) --- suffit à rendre infaisable la tolérance
-calibrée la veille. La marge de $10\,\%$ sur $\taustar$ est donc un
-\emph{budget de robustesse aux croyances}, et il est étroit~: il n'absorbe
-même pas une erreur d'estimation typique du paramètre le plus fragile du
-modèle. La conséquence pratique est celle annoncée en
-section~\ref{ssec:taustar}~: l'ancrage de $\delta$ sur un $\taustar$
-\emph{recalculé avec les données} n'est pas une élégance méthodologique mais
-une nécessité opérationnelle --- tout seuil figé, si raisonnable soit-il au
-moment de sa fixation, a une espérance de vie qui se mesure en points de base
-de drift. Et c'est le pendant, côté contraintes, de la sensibilité~(a)~: la
-solvabilité apparente du fonds est empruntée à la fenêtre, et l'ICC ---
-l'instrument qui la surveille --- est le premier composant du modèle à
-encaisser la restitution de l'emprunt.
+À chaque $\alpha$, le manque libre reste proche du plancher, mais l'écart
+relatif grossit quand les drifts baissent (de $\sim 1\,\%$ à $\alpha = 1$ à
+$\sim 9\,\%$ à $\alpha = 0$)~: la coïncidence quasi-minimax est un effet des
+drifts élevés. La transition d'infaisabilité se produit entre $\alpha = 0{,}95$
+et $0{,}90$~: $60$ à $110$ points de base sur VFV, moins que l'erreur type
+d'estimation. La marge de $10\,\%$ est un budget de robustesse étroit.
+
 
 % ==================================================================
+\section{Biais d'optimisation et surapprentissage}\label{ssec:biais-saa}
+% ==================================================================
+
+Le point de discussion le plus important n'est pas que les chiffres
+in-sample soient optimistes~: c'est que leur optimisme est un phénomène
+théorique connu --- le \emph{biais d'optimisation} de l'approximation par
+moyenne échantillonnale (SAA) / arbre de scénarios --- qu'il faut nommer dès
+qu'on fixe une graine et qu'on résout l'instance discrétisée qui en découle
+(chapitre Monte Carlo du cours de programmation stochastique~;
+\cite{Mak1999,Shapiro2003}). On n'a pas commis une erreur d'implémentation~;
+on a optimisé un problème approché.
+
+Soit un programme $v^\star = \min_x \E[F(x,\xi)]$ et son approximation sur
+$N$ scénarios,
+$\hat v_N = \min_x \frac1N\sum_{i=1}^N F(x,\xi^i)$. Alors
+\begin{equation}\label{eq:saa-bias}
+\E[\hat v_N] \;\le\; v^\star,
+\end{equation}
+et le biais décroît (en valeur absolue) quand $N$ croît~:
+$\E[\hat v_N] \le \E[\hat v_{N+1}] \le \cdots \le v^\star$. Ce sont les
+théorèmes~1 et~2 de Mak, Morton et Wood~\cite{Mak1999}~; le traitement de
+référence est Shapiro, Dentcheva et Ruszczyński~\cite{ShapiroDentchevaRusz2021},
+chapitre~5, et le cas multi-étapes --- le nôtre --- est plus sévère encore, le
+nombre de scénarios requis croissant exponentiellement avec le nombre
+d'étapes~\cite{Shapiro2003}. Mak et al.\ le disent en toutes lettres~:
+optimiser sur un sous-ensemble des futurs possibles à chaque branche de
+l'arbre produit, en moyenne, un résultat optimiste~\cite[p.~55]{Mak1999}.
+
+\paragraph{Application à nos deux objets.}
+$\taustar$ est la valeur optimale d'un programme de minimisation sur un arbre
+échantillonné~: par~\eqref{eq:saa-bias}, il est systématiquement sous-estimé.
+L'objectif $\min -\E[S_T] - \lambda\,\CSaR_\gamma$ surestime le surplus~:
+d'où $56{,}15$ sur l'arbre de référence contre $\approx 43{,}6$ hors
+échantillon. Le même phénomène porte d'autres noms~: \emph{optimizer's
+curse} en analyse de la décision~\cite{SmithWinkler2006}, écart
+apprentissage/test en statistique~\cite{Hastie2009}.
+
+\paragraph{Degrés de liberté.}
+La politique de recours compte $1\,561 \times 5 = 7\,805$ montants investis,
+dont $1\,561$ sont déterminés par les budgets~: il reste $6\,244$ degrés de
+liberté, ajustés sur $6\,250$ scénarios --- un paramètre libre par
+observation. Au dernier étage, $1\,250$ n\oe uds portent chacun $4$ poids
+libres pour $5$ réalisations de rendement. À l'autre extrême, les portefeuilles
+à poids fixes ont quatre paramètres. Le duel Croissance/Optimisée se relit
+alors comme un arbitrage biais--variance manuel~: le modèle riche gagne
+in-sample et perd sa prime hors échantillon.
+
+\paragraph{Stabilité in-sample.}
+L'étude inter-graines (section~\ref{ssec:validation}) est un test de
+\emph{stabilité in-sample} au sens de Kaut et Wallace~\cite{KautWallace2007}~:
+des arbres différents donnent-ils la même valeur~? Avec un objectif de
+$-23{,}9 \pm 13{,}8$ et un $\taustar$ de $0{,}016 \pm 0{,}013$, le test
+\emph{échoue}, et c'est une information, pas une gêne. Ce qui résiste, c'est le
+rapport conditionnel/inconditionnel (facteur dix à vingt) et la part actions
+totale.
+
+\paragraph{Encadrement de $v^\star$.}
+On dispose déjà des deux quantités qui encadrent le vrai optimum~\cite{Mak1999}~:
+$\E[\hat v_N]$ (moyenne des valeurs in-sample) comme borne inférieure au sens
+de l'objectif de minimisation, et la valeur hors échantillon d'une politique
+admissible comme borne de performance réalisable. Les présenter côte à côte
+transforme deux chiffres apparemment sans relation ($56{,}15$ sur l'arbre de
+référence et $43{,}6$ hors échantillon) en un écart d'optimalité / de
+discrétisation mesuré. En lecture surplus~: la moyenne inter-graines
+($41{,}4 \pm 8{,}1$) est cohérente avec l'évaluation fraîche~; l'arbre
+\texttt{SEED0} seul est une réalisation favorable.
+
+\paragraph{Enrichissement de l'arbre et $B_{\mathrm{eval}}$.}
+\label{par:enrichissement}
+Pour documenter le biais plutôt que de le subir, on fait varier le branchement
+à graine et générateur \texttt{Xoshiro} fixés (\texttt{SEED0}), et l'on compare
+l'optimum LP à la valeur, sur le \emph{même} arbre, d'une politique à poids
+fixes égaux à l'allocation racine (écart $\approx$ biais d'optimisation
+local). On fait aussi varier le branchement des sous-arbres d'évaluation hors
+échantillon.
+
+\begin{center}
+\begin{tabular}{lrrrrcc}
+\toprule
+Branchement & Feuilles & $\taustar$ & $\E[S_T]_{\mathrm{LP}}$ &
+$\E[S_T]_{\mathrm{fixes}}$ & Écart & Racine (XIC, VFV) \\
+\midrule
+$[10,5,5,5,5]$ (base) & $6\,250$ & $0{,}0108$ & $56{,}15$ & $48{,}08$ &
+$8{,}07$ & $(0{,}40,\ 0{,}30)$ \\
+$[30,5,5,5,5]$ & $18\,750$ & $0{,}0055$ & $52{,}82$ & $49{,}54$ &
+$3{,}28$ & $(0{,}32,\ 0{,}40)$ \\
+$[10,15,15,5,5]$ & $56\,250$ & $0{,}0088$ & $53{,}10$ & $47{,}33$ &
+$5{,}77$ & $(0{,}35,\ 0{,}35)$ \\
+$[10,8,8,8,8]$ & $40\,960$ & $0{,}0071$ & $55{,}86$ & $48{,}25$ &
+$7{,}61$ & $(0{,}40,\ 0{,}30)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Trois lectures, toutes compatibles avec le cadrage Monte Carlo.
+
+(i)~\emph{Les grandeurs in-sample sont des statistiques d'instance.}
+$\taustar$ passe de $1{,}08\,\%$ à $0{,}55\,\%$ selon le branchement~;
+$\E[S_T]_{\mathrm{LP}}$ de $56{,}15$ à $52{,}8$--$55{,}9$. Ce ne sont pas des
+constantes du fonds~: ce sont les optima du programme discrétisé associé à
+chaque arbre.
+
+(ii)~\emph{Biais d'optimisation local.} L'écart LP $-$ poids fixes vaut
+$8{,}07$ sur le cas de base et tombe à $3{,}28$ quand la racine est enrichie
+à $30$ enfants --- là où se décide l'allocation \emph{here-and-now}. Enrichir
+seulement les derniers étages ($[10,8,8,8,8]$) ne réduit presque pas l'écart
+($7{,}61$)~: c'est bien le rapport «~paramètres libres / réalisations
+observées~» aux n\oe uds de décision qui gouverne le biais, pas le seul nombre
+de feuilles.
+
+(iii)~\emph{XIC/VFV.} Sur l'arbre de base, XIC sature le plafond et VFV est à
+$30\,\%$~; avec racine à $30$ enfants, VFV sature le plafond et XIC redescend
+à $32\,\%$~; avec $[10,15,15,5,5]$, les deux se partagent $35$/$35$. La
+préférence XIC de l'instance de référence est un artefact de discrétisation,
+pas un arbitrage économique robuste.
+
+\begin{center}
+\begin{tabular}{crrrr}
+\toprule
+$B_{\mathrm{eval}}$ & $n$ traj. & $\E[S_T]$ opt. & $\E[S_T]$ croiss. &
+$\Delta$ apparié (ET) \\
+\midrule
+$4$ (réf.\ phase~5) & $200$ & $43{,}58$ & $46{,}07$ & $-2{,}49$ $(0{,}47)$ \\
+$8$ & $200$ & $44{,}64$ & $46{,}07$ & $-1{,}43$ $(0{,}41)$ \\
+$12$ & $100$ & $40{,}62$ & $41{,}71$ & $-1{,}09$ $(0{,}63)$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Relever $B_{\mathrm{eval}}$ de $4$ à $8$ (mêmes $200$ trajectoires) améliore
+l'optimisée de $43{,}6$ à $44{,}6$ et réduit l'écart apparié à la Croissance
+de $-2{,}49$ à $-1{,}43$~: une partie du handicap multi-étapes venait de la
+grossièreté des sous-arbres de recours. À $B_{\mathrm{eval}}=12$ (sous-échantillon
+de $100$ trajectoires, d'où le niveau absolu plus bas), l'écart apparié reste
+négatif mais plus petit ($-1{,}09$). Dans tous les cas, on optimise encore une
+instance discrétisée à chaque date~; seule l'évaluation sur trajectoires
+i.i.d.\ fraîches estime la performance vraie d'une politique \emph{donnée}.
+
 \section{Limites et extensions}\label{sec:limites}
 % ==================================================================
 
@@ -1473,13 +1677,13 @@ exponentiellement avec $T$ --- et son dépassement passe par la décomposition
 évoquée en extension (SDDP, section~\ref{ssec:extensions}).
 
 \emph{La fenêtre d'estimation est courte et haussière.} C'est la limite la
-mieux quantifiée du document (analyses~(a) et~(h))~: l'essentiel de la
+mieux quantifiée du document (analyses~(d) et~(h))~: l'essentiel de la
 sécurité apparente du cas de base est emprunté aux drifts de la fenêtre, et le
 dispositif de calibration lui-même ($\delta$ ancré à $\taustar$) ne survit
 qu'à une révision de croyances inférieure à l'erreur type des drifts. Nous ne
 le répétons pas davantage~; c'est le message central.
 
-\emph{Divers.} La poche VFV est portée non couverte --- le risque de change
+\emph{Divers.} Le compartiment VFV est porté non couvert --- le risque de change
 est modélisé implicitement via les rendements en dollars canadiens, avec le
 pari de drift qu'assume et chiffre la section~\ref{ssec:univers}~; CGL reste
 couvert par construction~;
@@ -1487,90 +1691,123 @@ la concentration effective actions se réduit au couple XIC--VFV corrélé à
 $0{,}68$~; l'or est modélisé par son seul cours (pas de revenu)~; les frais de
 transaction et le rééquilibrage infra-période sont ignorés~; et l'actif est
 fermé par hypothèse --- le levier des cotisations, dont l'analyse~(g) chiffre
-la valeur en creux, est absent par construction.
+la valeur en creux, est absent par construction. Le compartiment VFV est
+non couvert (diagnostic de change en section~\ref{ssec:univers}).
 
 \subsection{Extensions}\label{ssec:extensions}
 
-Quatre directions prolongent naturellement le prototype, par ordre croissant
-d'ambition. \emph{Réintroduire les cotisations}~: un terme de cotisation avec
-coût de niveau et de variabilité dans l'objectif ramène au modèle
-institutionnel de~\cite{KHSV2010} et permettrait de tester la prédiction de
-l'analyse~(g) --- avec redressement, l'écart conditionnel--inconditionnel doit
-se refermer. \emph{Coupler taux et passif}~: faire dépendre $g$ d'un facteur
-de taux commun aux rendements obligataires rendrait à XRB et XLB leurs rôles
-distincts et ferait émerger l'appariement --- c'est l'extension au meilleur
-rapport enseignement/effort. \emph{Enrichir la génération de scénarios}~:
-bootstrap par blocs (queues et autocorrélations empiriques) ou appariement de
-moments~\cite{HoylandWallace2001} (réduction de la variance inter-graines à
-taille d'arbre donnée).
-\emph{Cohérence temporelle}~: mesures de risque imbriquées et décomposition
-par programmation dynamique duale stochastique
-(SDDP,~\cite{PereiraPinto1991}), qui lèveraient à la
-fois la staticité de la CSaR et la contrainte de taille des arbres --- au prix
-d'un changement de technologie complet.
+Cinq directions prolongent le prototype, par ordre de priorité scientifique.
 
-% ==================================================================
+\paragraph{Rétropolation de la fenêtre d'estimation.}
+C'est le meilleur investissement qui reste, et un chantier de données à part
+entière. La limite centrale du document --- fenêtre courte et haussière --- est
+une conséquence du choix d'univers plutôt qu'une fatalité~: c'est VFV, créé en
+novembre~2012, qui borne la fenêtre commune, alors que \texttt{START} est fixé
+à $2005$. Reconstruire VFV par \texttt{\textasciicircum GSPC}$\times$USD/CAD,
+XIC par XIU (1999), CGL par l'or au comptant, permettrait d'inclure $2008$ et de
+retester $\taustar$ et la sensibilité $\mu$ sur un cycle complet. Nous ne le
+faisons pas ici~; nous le plaçons en tête des suites.
+
+\paragraph{Réintroduire les cotisations.}
+Un terme $c_n \ge 0$ avec coût de niveau et de variabilité dans l'objectif, et
+des ICC \emph{conditionnelles} restaurées, ramène au modèle institutionnel
+de~\cite{KHSV2010}. Prédiction testable, déjà chiffrée en creux par
+l'analyse~(g)~: l'écart $\taustar_{\mathrm{cond}} - \taustar$ doit se
+\emph{refermer} dès que le promoteur peut injecter du capital état par état.
+Confirmation~: un rapport conditionnel/inconditionnel ramené de l'ordre de
+$20$ à un facteur proche de $1$--$2$ sous un coût de cotisation réaliste.
+
+\paragraph{Règles de décision affines.}
+Si le problème est un excès de degrés de liberté ($6\,244$ paramètres pour
+$6\,250$ scénarios), la réponse naturelle est de régulariser la classe de
+politiques~: $x_{n,i} = \alpha_i + \beta_i A_n + \gamma_i L_n$ fait passer à une
+quinzaine de paramètres tout en restant linéaire. Les portefeuilles à poids
+fixes en sont le cas dégénéré ($\beta = \gamma = 0$). C'est le chaînon
+manquant entre nos deux familles de politiques, et la bonne façon de
+re-poser la question « la flexibilité multi-étapes vaut-elle quelque
+chose~? » à capacité contrôlée.
+
+\paragraph{Reformulation de l'objectif.}
+$\E[S_T]$ récompense un upside qui n'a pas de valeur économique claire pour un
+régime fermé (surplus piégé ou revenant au promoteur), et c'est ce terme qui
+pousse aux bornes --- d'où l'inertie en $\lambda$ et $\gamma$. Une utilité
+concave affine par morceaux du surplus terminal resterait un programme
+linéaire~; c'est le sujet d'un prolongement, pas de la présente révision.
+
+\paragraph{Couplage taux--passif, scénarios, SDDP.}
+Faire dépendre $g$ d'un facteur de taux commun aux obligations rendrait à XRB
+et XLB leurs rôles distincts. Bootstrap par blocs ou appariement de
+moments~\cite{HoylandWallace2001} réduirait la variance inter-graines.
+Mesures de risque imbriquées et SDDP~\cite{PereiraPinto1991} lèveraient la
+staticité de la CSaR et la contrainte de taille des arbres --- au prix d'un
+changement de technologie.
+
 \section{Conclusion}\label{sec:conclusion}
-% ==================================================================
 
 La question posée en introduction était double~: quelle allocation dynamique
 pour un fonds de pension fermé, et --- plus fondamentalement --- quel niveau de
 solvabilité est-il seulement \emph{possible} de garantir quand l'allocation est
 le dernier levier restant~? La formulation en programme de recours multi-étapes,
-armée des deux instruments du chapitre~6 de~\cite{KHvdVR2020}, a permis de
-donner à cette seconde question une réponse chiffrée, et c'est le plancher de
-faisabilité $\taustar$ --- introduit comme un expédient de calibration, devenu
-l'objet central du travail --- qui la porte.
+armée de l'ICC et de la CSaR, a permis de donner à cette seconde question une
+réponse chiffrée, portée par le plancher $\taustar$ --- introduit comme un
+expédient de calibration, devenu l'objet central, puis \emph{re-lu} comme un
+estimateur biaisé plutôt que comme une constante.
 
-Sur les données gelées au 30~juin~2026, la solvabilité incompressible du fonds
-étudié vaut $\taustar = 1{,}08\,\%$ du passif par période~: aucune allocation
-admissible ne fait mieux, et toute exigence plus stricte est infaisable ---
-non pas coûteuse, infaisable. Sa variante conditionnelle, qui exigerait la
-tenue du seuil état par état comme dans le modèle institutionnel
-de~\cite{KHSV2010}, vaut $21{,}4\,\%$~: vingt fois plus. Cet écart est à nos
-yeux le résultat le plus parlant du document~: il chiffre exactement ce que le
-fonds a perdu en fermant --- la cohérence temporelle de sa solvabilité --- et,
-en creux, ce que valent les cotisations de redressement qui la rendraient
-atteignable. Le balayage de la tolérance a précisé la géométrie de l'ICC dans
-ce problème~: contrainte de frontière plutôt que prix marginal, dormante à
-l'intérieur du domaine et infaisable au-delà, elle concentre tout son contenu
-économique dans le plancher qu'elle induit~; et l'analyse~(h) a montré que la
-marge de $10\,\%$ dont nous l'assortissons est un budget de robustesse aux
-croyances consommé par une révision de $60$ à $110$ points de base du drift
-actions --- moins que l'erreur type de ce même drift. L'ancrage de $\delta$ à
-un $\taustar$ recalculé avec les données n'est donc pas une élégance mais une
-nécessité opérationnelle.
+Trois messages tiennent debout seuls.
 
-Sur l'allocation elle-même, deux messages. La valeur de la flexibilité
-multi-étapes, évaluée hors échantillon contre des politiques à poids fixes,
-est réelle mais modeste, et logée là où la théorie la place~: dans les queues
-et la solvabilité de chemin, pas dans la moyenne --- les bornes de placement,
-en comprimant l'espace du recours, font d'une politique fixe agressive une
-excellente approximation de la politique optimale --- et le test de mauvaise
-spécification ajoute que ce constat survit au changement de monde~: optimiser
-sur des croyances devenues fausses n'a pas coûté plus cher, au bruit
-d'échantillonnage près, que de figer les poids. À l'inverse, la prudence
-d'allocation s'est révélée être, en run-off, la stratégie la plus dangereuse
-de toutes~: privé de cotisations, un fonds qui ne prend pas de risque d'actif
-est mécaniquement érodé par ses décaissements. Enfin, l'honnêteté oblige à
-encadrer tous ces chiffres par la sensibilité aux rendements espérés~: sous un
-drift actions sobre, la probabilité de sous-financement terminal passe de
-$7{,}2$ à $40{,}1\,\%$ et $\taustar$ quadruple. Une part substantielle de la
-sécurité apparente du fonds est empruntée à la fenêtre 2013--2026~; aucune
-optimisation ne crée cette sécurité, elle ne fait que la transporter depuis
-les hypothèses.
+\emph{Zéro --- ce que la graine ne dit pas.}
+Tous les optima in-sample sont ceux d'une instance d'arbre~: la graine et
+\texttt{Xoshiro} en assurent la reproductibilité, le biais Monte Carlo de la
+discrétisation en limite la portée (section~\ref{ssec:biais-saa}). Les messages
+ci-dessous sont ceux qui survivent à ce cadrage.
+
+\emph{Premier message --- le rapport conditionnel/inconditionnel.}
+Exiger la solvabilité état par état coûte un facteur \emph{dix à vingt} en
+tolérance de manque par rapport à l'exigence en espérance vue de la racine.
+Ce rapport résiste au test inter-graines (minimum observé $\approx 5{,}6$,
+moyenne $\approx 16$--$19$)~: c'est le résultat économique le plus robuste du
+document, et il chiffre en creux la valeur des cotisations de redressement pour
+un régime fermé. La valeur ponctuelle $\taustar = 1{,}08\,\%$ sur l'arbre de
+référence, elle, n'est qu'une réalisation parmi d'autres ($0{,}13\,\%$ à
+$4{,}6\,\%$ selon la graine)~; la solvabilité incompressible est de l'ordre de
+$1$ à $2\,\%$ du passif, avec une incertitude d'échantillonnage du même ordre.
+
+\emph{Deuxième message --- la flexibilité multi-étapes.}
+Évaluée hors échantillon contre des politiques à poids fixes, sa valeur est
+réelle mais modeste, logée dans les queues et la solvabilité de chemin plutôt
+que dans la moyenne. Les bornes de placement compriment le recours~; une
+politique fixe agressive approxime la solution. Le test de mauvaise
+spécification ajoute que ce constat survit au changement de monde, au bruit
+d'échantillonnage près. La prudence d'allocation s'est révélée la stratégie la
+plus dangereuse en run-off.
+
+\emph{Troisième message --- ce qui est emprunté.}
+Sous drift actions sobre, $\prob(\mathrm{FR}_T<1)$ passe de $7{,}2$ à
+$40{,}1\,\%$ et $\taustar$ quadruple. Une part substantielle de la sécurité
+apparente est empruntée à la fenêtre 2013--2026. Parallèlement, une part de
+l'optimisme in-sample est empruntée à l'arbre~: $\E[S_T] = 56{,}15$ sur la
+graine de référence contre $\approx 43{,}6$ hors échantillon et
+$41{,}4 \pm 8{,}1$ en moyenne inter-graines. Nommer ce biais d'optimisation
+(section~\ref{ssec:biais-saa}) n'affaiblit pas le prototype~: c'est ce qui le
+rend défendable.
 
 Les prolongements naturels sont ceux de la section~\ref{ssec:extensions}~:
-réintroduire les cotisations pour vérifier que l'écart
-conditionnel--inconditionnel se referme, coupler taux et passif pour rendre
-son sens à l'appariement obligataire, enrichir la génération de scénarios, et
---- à plus long terme --- passer aux mesures de risque imbriquées. Le
-prototype présenté ici aura alors joué son rôle~: montrer qu'avec deux
-instruments linéaires bien choisis, l'ICC et la CSaR, la question « que peut
-l'allocation seule~? » admet une réponse quantitative, reproductible, et
-honnête sur ses propres limites.
+rétropolation de la fenêtre, cotisations avec prédiction testable sur l'écart
+conditionnel/inconditionnel, règles de décision affines, reformulation de
+l'objectif. Le prototype aura alors joué son rôle~: montrer qu'avec deux
+instruments linéaires bien choisis, la question « que peut l'allocation
+seule~? » admet une réponse quantitative, reproductible, et honnête sur ses
+propres limites.
 
-% ==================================================================
+\subsection*{Déclaration relative à l'utilisation de l'intelligence artificielle}
+
+Des outils d'assistance à la rédaction et à la révision de code basés sur
+l'intelligence artificielle (notamment des assistants de programmation) ont été
+utilisés pour accélérer la mise en forme du \emph{notebook}, la relecture
+typographique et la structuration de certaines sections. L'ensemble des choix
+de modélisation, des résultats numériques, de leur interprétation économique et
+de la responsabilité scientifique du document demeure celui de l'auteur.
+
 \appendix
 \section{Linéarisation de la CSaR}\label{app:csar}
 
@@ -1613,7 +1850,7 @@ $\lambda > 0$, dans l'objectif~\eqref{eq:objectif} --- où $S_n = A_n - L_n$
 dépend des décisions ---, l'argument vaut à décisions fixées~: à l'optimum
 global, le bloc $(\eta, u)$ réalise la CSaR du surplus induit par les
 décisions optimales, ce que la vérification ex post du cas de base confirme
-numériquement à $3{,}6 \times 10^{-14}$ près
+numériquement à moins de $10^{-13}$ près
 (section~\ref{ssec:validation}). Si $\lambda = 0$, plus rien ne pousse le
 bloc vers son maximum et la valeur lue n'a pas de sens
 (remarque~\ref{rem:lambda-zero}).
@@ -1682,11 +1919,19 @@ $0{,}00$ & $0{,}050$ & $0{,}050$ & $0{,}0463$ & $0{,}0423$ & non & --- \\
 \section{Code}\label{app:code}
 
 \begin{sloppypar}
-L'intégralité du code est livrée dans le \emph{notebook} Julia
-\texttt{alm\_pension\_phases\_1a6\_julia\_2.ipynb}, accompagné du cache
-de données \texttt{prix\_ajustes\_cache.csv}, du cache du diagnostic de
-change \texttt{prix\_vsp\_cache.csv} et de la figure
-\texttt{comparaison\_benchmarks.png}.
+L'intégralité du matériel est déposée à l'adresse
+\url{https://github.com/Louckmane10/Gestion_ALM}~: le \emph{notebook} Julia
+\texttt{alm\_pension\_julia.ipynb}, les deux caches de données
+(\texttt{prix\_ajustes\_cache.csv} pour la calibration,
+\texttt{prix\_vsp\_cache.csv} pour le diagnostic de change), la figure
+\texttt{comparaison\_benchmarks.pdf}, la source \LaTeX{} du présent document,
+ainsi que \texttt{Project.toml} et \texttt{Manifest.toml} qui figent les
+versions exactes des paquets. Un clone du dépôt s'exécute donc sur une machine
+vierge sans autre préalable qu'une installation de Julia~: la première cellule
+active l'environnement du projet (\texttt{Pkg.activate} puis
+\texttt{Pkg.instantiate}), et les caches dispensent de tout téléchargement ---
+condition nécessaire à la reproduction, les cours ajustés étant re-normalisés
+rétroactivement à la source (section~\ref{ssec:donnees-brutes}).
 \end{sloppypar}
 \begin{sloppypar} C'est ce \emph{notebook}, exécuté de
 bout en bout sur noyau vierge (« Run All », environ deux minutes), qui a
@@ -1705,8 +1950,13 @@ période pour les sous-arbres) et \texttt{min\_tau\_uniform} (minimax
 inter-graines)~; (5)~évaluation hors échantillon (simulation, déroulés à poids
 fixes et optimisé avec ré-ancrage de $\delta$, assertion de faisabilité sur
 les $800$ sous-problèmes, puis test de mauvaise spécification sous drift
-sobre)~; (6)~analyses économiques (a)--(h). Les graines
-sont fixées et documentées~: \texttt{SEED0} $= 20240601$ (arbre principal et
+sobre)~; (6)~analyses économiques (a)--(h)~; (6~bis)~calculs lourds d'enrichissement
+d'arbre et de $B_{\mathrm{eval}}$. Le générateur pseudo-aléatoire est explicite
+--- \texttt{Random.Xoshiro}, instancié par graine dans \texttt{build\_tree} et
+\texttt{simulate\_paths} --- plutôt que le générateur global, dont l'algorithme
+et la sémantique par tâche dépendent de la version de Julia. Figer générateur
+\emph{et} graine rend reproductible l'\emph{instance discrétisée}, non
+$v^\star$ sous la loi continue. Les graines sont documentées~: \texttt{SEED0} $= 20240601$ (arbre principal et
 analyses), $777$ (validation $T=1$), \texttt{SEED0}$+1$ à $12$ (stabilité),
 $999$ et \texttt{base\_seed} $= 5000$ (hors échantillon), $998$ (trajectoires
 du test de mauvaise spécification, qui réutilise \texttt{base\_seed} $= 5000$
@@ -1777,6 +2027,45 @@ W.~F. Sharpe et L.~G. Tint,
 \og Liabilities --- a new approach \fg,
 \emph{Journal of Portfolio Management}, vol.~16, n\textsuperscript{o}~2,
 p.~5--10, 1990.
+
+
+\bibitem{Hastie2009}
+T.~Hastie, R.~Tibshirani et J.~Friedman,
+\emph{The Elements of Statistical Learning: Data Mining, Inference, and
+Prediction}, 2\textsuperscript{e}~éd., Springer Series in Statistics, Springer,
+New York, 2009.
+
+\bibitem{KautWallace2007}
+M.~Kaut et S.~W. Wallace,
+\og Evaluation of scenario generation methods for stochastic programming \fg,
+\emph{Pacific Journal of Optimization}, vol.~3, n\textsuperscript{o}~2,
+p.~257--271, 2007.
+
+\bibitem{Mak1999}
+W.-K. Mak, D.~P. Morton et R.~K. Wood,
+\og Monte Carlo bounding techniques for determining solution quality in
+stochastic programs \fg,
+\emph{Operations Research Letters}, vol.~24, n\textsuperscript{o}~1--2,
+p.~47--56, 1999.
+
+\bibitem{Shapiro2003}
+A.~Shapiro,
+\og Inference of statistical bounds for multistage stochastic programming
+problems \fg,
+\emph{Mathematical Methods of Operations Research}, vol.~58,
+n\textsuperscript{o}~1, p.~57--68, 2003.
+
+\bibitem{ShapiroDentchevaRusz2021}
+A.~Shapiro, D.~Dentcheva et A.~Ruszczyński,
+\emph{Lectures on Stochastic Programming: Modeling and Theory},
+3\textsuperscript{e}~éd., MOS-SIAM Series on Optimization, SIAM,
+Philadelphie, 2021.
+
+\bibitem{SmithWinkler2006}
+J.~E. Smith et R.~L. Winkler,
+\og The optimizer's curse: skepticism and postdecision surprise in decision
+analysis \fg,
+\emph{Management Science}, vol.~52, n\textsuperscript{o}~3, p.~311--322, 2006.
 
 \end{thebibliography}
 
