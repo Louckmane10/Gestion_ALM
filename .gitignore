@@ -31,3 +31,10 @@ _run_*
 
 # Figure vectorielle locale optionnelle
 comparaison_benchmarks.pdf
+
+# Artefacts locaux / doublons du rapport (le dépôt livre travail_dirige.pdf)
+td_alm_squelette.pdf
+td_alm_apercu.pdf
+*.aux
+*.toc
+*.out
